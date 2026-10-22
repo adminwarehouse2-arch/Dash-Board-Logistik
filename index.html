@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard Logistics & Routing Armada</title>
-  <!-- Tailwind CSS -->
+  <title>Logistics Armada Dashboard</title>
+  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <!-- PapaParse for CSV Parsing -->
+  <!-- PapaParse untuk parsing CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12">
@@ -17,12 +16,13 @@
   <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
-        <i class="fa-solid font-bold text-2xl text-amber-400 fa-truck-ramp-box"></i>
+        <i class="fa-solid fa-truck-ramp-box text-2xl text-amber-400"></i>
         <div>
           <h1 class="text-xl font-bold tracking-wide">Logistics Armada Dashboard</h1>
           <p class="text-xs text-indigo-200">Sheet: Jadwal Harian | Auto-Sync & Slide Per Tanggal</p>
         </div>
       </div>
+
       <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
         <i class="fa-solid fa-rotate"></i> Sync / Refresh Data
       </button>
@@ -71,11 +71,11 @@
     <!-- SLIDE NAVIGATOR PER TANGGAL -->
     <section class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="flex items-center space-x-2">
-        <button onclick="slideDate(-1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 p-2 rounded-lg shadow-sm transition">
-          <i class="fa-solid fa-chevron-left"></i> Tanggal Sebelumnya
+        <button onclick="slideDate(-1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 px-3 py-2 rounded-lg shadow-sm transition text-sm font-semibold">
+          <i class="fa-solid fa-chevron-left mr-1"></i> Tanggal Sebelumnya
         </button>
-        <button onclick="slideDate(1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 p-2 rounded-lg shadow-sm transition">
-          Tanggal Selanjutnya <i class="fa-solid fa-chevron-right"></i>
+        <button onclick="slideDate(1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 px-3 py-2 rounded-lg shadow-sm transition text-sm font-semibold">
+          Tanggal Selanjutnya <i class="fa-solid fa-chevron-right ml-1"></i>
         </button>
       </div>
 
@@ -93,30 +93,21 @@
       </div>
     </section>
 
-    <!-- CONTENT: DISPLAY ARMADA CARDS FOR SELECTED DATE -->
-    <section id="armadaContainer" class="space-y-8">
-      <!-- Cards akan di-generate otomatis oleh Javascript -->
-    </section>
+    <!-- CONTAINER DISPLAY CARDS ARMADA -->
+    <section id="armadaContainer" class="space-y-8"></section>
 
   </main>
 
   <script>
-    // =========================================================================
-    // PASTE LINK CSV HASIL PUBLISH TO WEB ANDA DI SINI:
-    // =========================================================================
-    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS1.../pub?gid=350332557&single=true&output=csv"; 
-    // ^ Ganti dengan link CSV lengkap dari langkah 1!
+    // Link CSV Publik dari Google Sheets Anda
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
 
     let rawData = [];
     let datesList = [];
     let currentDateIndex = 0;
 
-    // Inisialisasi saat pertama kali dibuka
-    window.addEventListener('DOMContentLoaded', () => {
-      fetchSheetData();
-    });
+    window.addEventListener('DOMContentLoaded', fetchSheetData);
 
-    // Ambil Data CSV dari Google Sheets
     function fetchSheetData() {
       const container = document.getElementById('armadaContainer');
       container.innerHTML = `
@@ -125,40 +116,44 @@
           <p class="text-slate-600 font-medium">Mengambil data dari Google Sheets Jadwal Harian...</p>
         </div>`;
 
-      Papa.parse(GOOGLE_SHEET_CSV_URL, {
+      Papa.parse(CSV_URL, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          processRawData(results.data);
+          if (results.data && results.data.length > 0) {
+            processRawData(results.data);
+          } else {
+            showError();
+          }
         },
-        error: function(err) {
-          container.innerHTML = `
-            <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
-              <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
-              <p class="font-bold">Gagal mengambil data dari Google Sheets!</p>
-              <p class="text-sm mt-1">Pastikan Sheet sudah di-Publish to Web dengan format CSV.</p>
-            </div>`;
+        error: function() {
+          showError();
         }
       });
     }
 
-    // Olah Data CSV
+    function showError() {
+      document.getElementById('armadaContainer').innerHTML = `
+        <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
+          <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+          <p class="font-bold">Gagal mengambil data dari Google Sheets!</p>
+          <p class="text-sm mt-1">Pastikan Sheet sudah di-Publish to Web dengan format CSV.</p>
+        </div>`;
+    }
+
     function processRawData(data) {
       rawData = data.map(item => ({
         Tanggal: (item['Tanggal'] || '').trim(),
         Customer: (item['Customer'] || '').trim(),
         Armada: (item['Armada'] || 'Lainnya').trim(),
         Daerah: (item['Daerah'] || '-').trim(),
-        TotalDokumen: item['Total Dokumen'] || '0',
+        TotalDokumen: (item['Total Dokumen'] || '0').trim(),
         TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
         Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0
-      })).filter(row => row.Tanggal !== '' && row.Customer !== '');
+      })).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
 
-      // Ambil Tanggal Unik
       datesList = [...new Set(rawData.map(item => item.Tanggal))];
-
-      // Populate Dropdown Filters
       populateFilters();
 
       if (datesList.length > 0) {
@@ -200,7 +195,6 @@
       const armadaFilter = document.getElementById('armadaFilter').value;
       const daerahFilter = document.getElementById('daerahFilter').value;
 
-      // Filter Data berdasarkan Tanggal Aktif & Filter Input
       let filtered = rawData.filter(item => item.Tanggal === selectedDate);
 
       if (armadaFilter !== 'ALL') filtered = filtered.filter(i => i.Armada === armadaFilter);
@@ -212,7 +206,6 @@
         );
       }
 
-      // Group per Armada
       const grouped = {};
       filtered.forEach(item => {
         if (!grouped[item.Armada]) grouped[item.Armada] = [];
@@ -232,7 +225,6 @@
         return;
       }
 
-      // Render Card per Jenis Armada
       armadaKeys.forEach(armadaName => {
         const items = grouped[armadaName];
         let totalBeratArmada = 0;
@@ -259,11 +251,10 @@
         });
 
         const cardHtml = `
-          <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-            <!-- Header Armada -->
+          <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden mb-6">
             <div class="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
               <div class="flex items-center space-x-3">
-                <span class="bg-indigo-500 text-white p-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+                <span class="bg-indigo-500 text-white px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">
                   <i class="fa-solid fa-truck"></i> ${armadaName}
                 </span>
                 <span class="text-sm text-slate-300 font-medium">Tanggal: ${selectedDate}</span>
@@ -274,7 +265,6 @@
               </div>
             </div>
 
-            <!-- Tabel Route Armada -->
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
@@ -290,7 +280,6 @@
                 <tbody>
                   ${rowsHtml}
                 </tbody>
-                <!-- Footer Ringkasan Armada -->
                 <tfoot>
                   <tr class="bg-slate-50 font-bold border-t text-sm">
                     <td colspan="3" class="py-3 px-4 text-slate-700 text-right">Total ${armadaName}:</td>
@@ -307,7 +296,6 @@
       });
     }
 
-    // Fungsi Navigasi Tanggal (Slide)
     function slideDate(direction) {
       if (datesList.length === 0) return;
       currentDateIndex += direction;
