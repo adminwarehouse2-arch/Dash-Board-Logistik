@@ -25,7 +25,7 @@
 
       <div class="flex items-center gap-2">
         <span id="syncBadge" class="bg-indigo-800 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-700 flex items-center gap-1.5">
-          <i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready
+          <i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...
         </span>
         <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
           <i class="fa-solid fa-rotate"></i> Sync Data
@@ -211,9 +211,10 @@
   </div>
 
   <script>
-    // URL CSV Jadwal Harian & Input Order (Publikasi Google Sheets)
+    // URL Sheet 1 (Jadwal Harian) & Sheet 2 (INPUT ORDER)
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
-    const CSV_INPUT_ORDER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=0&single=true&output=csv";
+    const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
+    const CSV_INPUT_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
 
     let rawData = [];
     let orderDetailsData = [];
@@ -234,7 +235,7 @@
           <p class="text-slate-600 font-medium">Mengambil data Jadwal Harian & Input Order...</p>
         </div>`;
 
-      // Fetch Sheet 1: Jadwal Harian
+      // 1. Fetch Sheet Jadwal Harian
       Papa.parse(CSV_JADWAL_URL, {
         download: true,
         header: true,
@@ -243,27 +244,53 @@
           if (results1.data && results1.data.length > 0) {
             processRawData(results1.data);
             
-            // Fetch Sheet 2: INPUT ORDER
-            Papa.parse(CSV_INPUT_ORDER_URL, {
-              download: true,
-              header: true,
-              skipEmptyLines: true,
-              complete: function(results2) {
-                if (results2.data) {
-                  processOrderDetailsData(results2.data);
-                }
-                badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready`;
-              },
-              error: function() {
-                badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Order Sheet Error`;
-              }
-            });
+            // 2. Fetch Sheet INPUT ORDER dengan Fallback Proxy jika CORS Error
+            fetchInputOrderData(badge);
           } else {
             showError();
           }
         },
         error: function() {
           showError();
+        }
+      });
+    }
+
+    function fetchInputOrderData(badge) {
+      // Opsi 1: Google GViz API
+      Papa.parse(CSV_INPUT_ORDER_URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results2) {
+          if (results2.data && results2.data.length > 0) {
+            processOrderDetailsData(results2.data);
+            badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready`;
+          } else {
+            fetchInputOrderFallback(badge);
+          }
+        },
+        error: function() {
+          fetchInputOrderFallback(badge);
+        }
+      });
+    }
+
+    function fetchInputOrderFallback(badge) {
+      // Opsi 2: Fallback via CORS Proxy
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(CSV_INPUT_ORDER_URL)}`;
+      Papa.parse(proxyUrl, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results3) {
+          if (results3.data) {
+            processOrderDetailsData(results3.data);
+            badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready`;
+          }
+        },
+        error: function() {
+          badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Order Sheet Error`;
         }
       });
     }
@@ -322,9 +349,9 @@
 
     function processOrderDetailsData(data) {
       orderDetailsData = data.map(item => ({
-        TanggalKirim: (item['Tanggal Kirim'] || '').trim(),
-        NamaCustomer: (item['Nama Customer'] || '').trim(),
-        TransactionNumber: (item['Transaction Number'] || '').trim(),
+        TanggalKirim: (item['Tanggal Kirim'] || item['Tanggal'] || '').trim(),
+        NamaCustomer: (item['Nama Customer'] || item['Customer'] || '').trim(),
+        TransactionNumber: (item['Transaction Number'] || item['No Dokumen'] || '').trim(),
         NoPO: (item['NO PO'] || '-').trim(),
         Status: (item['Status'] || '-').trim(),
         Armada: (item['Armada'] || '-').trim()
