@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Logistics & Routing Armada</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <!-- PapaParse for CSV Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12">
+
+  <!-- HEADER -->
+  <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid font-bold text-2xl text-amber-400 fa-truck-ramp-box"></i>
+        <div>
+          <h1 class="text-xl font-bold tracking-wide">Logistics Armada Dashboard</h1>
+          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian | Auto-Sync & Slide Per Tanggal</p>
+        </div>
+      </div>
+      <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
+        <i class="fa-solid fa-rotate"></i> Sync / Refresh Data
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 mt-6">
+
+    <!-- FILTER & SEARCH BAR -->
+    <section class="bg-white p-4 rounded-xl shadow-md border border-slate-200 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Search -->
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer</label>
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik nama customer / daerah..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <!-- Filter Armada -->
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Armada</label>
+          <select id="armadaFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="ALL">Semua Armada</option>
+          </select>
+        </div>
+
+        <!-- Filter Daerah -->
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Daerah</label>
+          <select id="daerahFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="ALL">Semua Daerah</option>
+          </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div class="flex items-end">
+          <button onclick="resetFilters()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium transition">
+            <i class="fa-solid fa-filter-circle-xmark mr-1"></i> Reset Filter
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE NAVIGATOR PER TANGGAL -->
+    <section class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center space-x-2">
+        <button onclick="slideDate(-1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 p-2 rounded-lg shadow-sm transition">
+          <i class="fa-solid fa-chevron-left"></i> Tanggal Sebelumnya
+        </button>
+        <button onclick="slideDate(1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 p-2 rounded-lg shadow-sm transition">
+          Tanggal Selanjutnya <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- Indicator Tanggal Aktif -->
+      <div class="text-center">
+        <span class="text-xs uppercase font-bold text-indigo-500 tracking-wider block">Menampilkan Tanggal</span>
+        <span id="currentDateDisplay" class="text-xl font-extrabold text-indigo-900">Memuat Data...</span>
+      </div>
+
+      <!-- Direct Date Picker -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-slate-600">Pilih Tanggal:</span>
+        <select id="dateSelect" onchange="onDateSelectChange(this.value)" class="py-1.5 px-3 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900 focus:outline-none">
+        </select>
+      </div>
+    </section>
+
+    <!-- CONTENT: DISPLAY ARMADA CARDS FOR SELECTED DATE -->
+    <section id="armadaContainer" class="space-y-8">
+      <!-- Cards akan di-generate otomatis oleh Javascript -->
+    </section>
+
+  </main>
+
+  <script>
+    // =========================================================================
+    // PASTE LINK CSV HASIL PUBLISH TO WEB ANDA DI SINI:
+    // =========================================================================
+    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS1.../pub?gid=350332557&single=true&output=csv"; 
+    // ^ Ganti dengan link CSV lengkap dari langkah 1!
+
+    let rawData = [];
+    let datesList = [];
+    let currentDateIndex = 0;
+
+    // Inisialisasi saat pertama kali dibuka
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchSheetData();
+    });
+
+    // Ambil Data CSV dari Google Sheets
+    function fetchSheetData() {
+      const container = document.getElementById('armadaContainer');
+      container.innerHTML = `
+        <div class="text-center py-12">
+          <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
+          <p class="text-slate-600 font-medium">Mengambil data dari Google Sheets Jadwal Harian...</p>
+        </div>`;
+
+      Papa.parse(GOOGLE_SHEET_CSV_URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          processRawData(results.data);
+        },
+        error: function(err) {
+          container.innerHTML = `
+            <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
+              <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+              <p class="font-bold">Gagal mengambil data dari Google Sheets!</p>
+              <p class="text-sm mt-1">Pastikan Sheet sudah di-Publish to Web dengan format CSV.</p>
+            </div>`;
+        }
+      });
+    }
+
+    // Olah Data CSV
+    function processRawData(data) {
+      rawData = data.map(item => ({
+        Tanggal: (item['Tanggal'] || '').trim(),
+        Customer: (item['Customer'] || '').trim(),
+        Armada: (item['Armada'] || 'Lainnya').trim(),
+        Daerah: (item['Daerah'] || '-').trim(),
+        TotalDokumen: item['Total Dokumen'] || '0',
+        TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
+        Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0
+      })).filter(row => row.Tanggal !== '' && row.Customer !== '');
+
+      // Ambil Tanggal Unik
+      datesList = [...new Set(rawData.map(item => item.Tanggal))];
+
+      // Populate Dropdown Filters
+      populateFilters();
+
+      if (datesList.length > 0) {
+        currentDateIndex = 0;
+        renderDashboard();
+      } else {
+        document.getElementById('armadaContainer').innerHTML = `
+          <div class="bg-amber-50 p-6 rounded-xl border border-amber-200 text-center text-amber-800">
+            Tidak ada baris data valid yang ditemukan pada sheet.
+          </div>`;
+      }
+    }
+
+    function populateFilters() {
+      const armadas = [...new Set(rawData.map(i => i.Armada))].filter(Boolean);
+      const daerahs = [...new Set(rawData.map(i => i.Daerah))].filter(Boolean);
+
+      const armadaSelect = document.getElementById('armadaFilter');
+      armadaSelect.innerHTML = '<option value="ALL">Semua Armada</option>';
+      armadas.forEach(a => armadaSelect.innerHTML += `<option value="${a}">${a}</option>`);
+
+      const daerahSelect = document.getElementById('daerahFilter');
+      daerahSelect.innerHTML = '<option value="ALL">Semua Daerah</option>';
+      daerahs.forEach(d => daerahSelect.innerHTML += `<option value="${d}">${d}</option>`);
+
+      const dateSelect = document.getElementById('dateSelect');
+      dateSelect.innerHTML = '';
+      datesList.forEach((dt, idx) => {
+        dateSelect.innerHTML += `<option value="${idx}">${dt}</option>`;
+      });
+    }
+
+    function renderDashboard() {
+      const selectedDate = datesList[currentDateIndex];
+      document.getElementById('currentDateDisplay').innerText = selectedDate || '-';
+      document.getElementById('dateSelect').value = currentDateIndex;
+
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const armadaFilter = document.getElementById('armadaFilter').value;
+      const daerahFilter = document.getElementById('daerahFilter').value;
+
+      // Filter Data berdasarkan Tanggal Aktif & Filter Input
+      let filtered = rawData.filter(item => item.Tanggal === selectedDate);
+
+      if (armadaFilter !== 'ALL') filtered = filtered.filter(i => i.Armada === armadaFilter);
+      if (daerahFilter !== 'ALL') filtered = filtered.filter(i => i.Daerah === daerahFilter);
+      if (searchTerm) {
+        filtered = filtered.filter(i => 
+          i.Customer.toLowerCase().includes(searchTerm) || 
+          i.Daerah.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      // Group per Armada
+      const grouped = {};
+      filtered.forEach(item => {
+        if (!grouped[item.Armada]) grouped[item.Armada] = [];
+        grouped[item.Armada].push(item);
+      });
+
+      const container = document.getElementById('armadaContainer');
+      container.innerHTML = '';
+
+      const armadaKeys = Object.keys(grouped);
+      if (armadaKeys.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-8 rounded-xl shadow text-center text-slate-500">
+            <i class="fa-solid fa-box-open text-3xl mb-2 text-slate-300"></i>
+            <p>Tidak ada rute/armada pada kriteria tanggal dan filter ini.</p>
+          </div>`;
+        return;
+      }
+
+      // Render Card per Jenis Armada
+      armadaKeys.forEach(armadaName => {
+        const items = grouped[armadaName];
+        let totalBeratArmada = 0;
+        let totalCostArmada = 0;
+
+        items.forEach(i => {
+          totalBeratArmada += i.TotalBerat;
+          totalCostArmada += i.Cost;
+        });
+
+        let rowsHtml = '';
+        items.forEach((item, index) => {
+          rowsHtml += `
+            <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-sm">
+              <td class="py-3 px-4 font-medium text-slate-400">${index + 1}</td>
+              <td class="py-3 px-4 font-bold text-slate-800">${item.Customer}</td>
+              <td class="py-3 px-4 text-slate-600">${item.Daerah}</td>
+              <td class="py-3 px-4 text-center">${item.TotalDokumen}</td>
+              <td class="py-3 px-4 text-right">${item.TotalBerat.toLocaleString('id-ID')} gr</td>
+              <td class="py-3 px-4 text-right font-semibold text-emerald-600">
+                ${item.Cost > 0 ? 'Rp ' + item.Cost.toLocaleString('id-ID') : '-'}
+              </td>
+            </tr>`;
+        });
+
+        const cardHtml = `
+          <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+            <!-- Header Armada -->
+            <div class="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
+              <div class="flex items-center space-x-3">
+                <span class="bg-indigo-500 text-white p-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  <i class="fa-solid fa-truck"></i> ${armadaName}
+                </span>
+                <span class="text-sm text-slate-300 font-medium">Tanggal: ${selectedDate}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-slate-400 block">Total Cost Armada</span>
+                <span class="text-lg font-extrabold text-amber-400">Rp ${totalCostArmada.toLocaleString('id-ID')}</span>
+              </div>
+            </div>
+
+            <!-- Tabel Route Armada -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider border-b">
+                    <th class="py-2.5 px-4">No</th>
+                    <th class="py-2.5 px-4">Customer / Rute</th>
+                    <th class="py-2.5 px-4">Daerah</th>
+                    <th class="py-2.5 px-4 text-center">Dokumen</th>
+                    <th class="py-2.5 px-4 text-right">Berat (gr)</th>
+                    <th class="py-2.5 px-4 text-right">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+                <!-- Footer Ringkasan Armada -->
+                <tfoot>
+                  <tr class="bg-slate-50 font-bold border-t text-sm">
+                    <td colspan="3" class="py-3 px-4 text-slate-700 text-right">Total ${armadaName}:</td>
+                    <td class="py-3 px-4 text-center">${items.reduce((a,b)=>a+parseInt(b.TotalDokumen||0), 0)}</td>
+                    <td class="py-3 px-4 text-right">${totalBeratArmada.toLocaleString('id-ID')} gr</td>
+                    <td class="py-3 px-4 text-right text-emerald-700">Rp ${totalCostArmada.toLocaleString('id-ID')}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>`;
+
+        container.innerHTML += cardHtml;
+      });
+    }
+
+    // Fungsi Navigasi Tanggal (Slide)
+    function slideDate(direction) {
+      if (datesList.length === 0) return;
+      currentDateIndex += direction;
+      if (currentDateIndex < 0) currentDateIndex = datesList.length - 1;
+      if (currentDateIndex >= datesList.length) currentDateIndex = 0;
+      renderDashboard();
+    }
+
+    function onDateSelectChange(val) {
+      currentDateIndex = parseInt(val);
+      renderDashboard();
+    }
+
+    function applyFilters() {
+      renderDashboard();
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('armadaFilter').value = 'ALL';
+      document.getElementById('daerahFilter').value = 'ALL';
+      renderDashboard();
+    }
+  </script>
+</body>
+</html>
