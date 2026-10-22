@@ -211,10 +211,11 @@
   </div>
 
   <script>
-    // URL Sheet 1 (Jadwal Harian) & Sheet 2 (INPUT ORDER)
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
+    
+    // OpenSheet API Endpoint untuk Sheet INPUT ORDER
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
-    const CSV_INPUT_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
+    const OPENSHEET_URL = `https://opensheet.elk.sh/${SHEET_ID}/INPUT%20ORDER`;
 
     let rawData = [];
     let orderDetailsData = [];
@@ -235,7 +236,7 @@
           <p class="text-slate-600 font-medium">Mengambil data Jadwal Harian & Input Order...</p>
         </div>`;
 
-      // 1. Fetch Sheet Jadwal Harian
+      // Fetch Sheet 1: Jadwal Harian
       Papa.parse(CSV_JADWAL_URL, {
         download: true,
         header: true,
@@ -244,8 +245,8 @@
           if (results1.data && results1.data.length > 0) {
             processRawData(results1.data);
             
-            // 2. Fetch Sheet INPUT ORDER dengan Fallback Proxy jika CORS Error
-            fetchInputOrderData(badge);
+            // Fetch Sheet 2: INPUT ORDER via OpenSheet API (Bypass CORS)
+            fetchOrderSheetOpenAPI(badge);
           } else {
             showError();
           }
@@ -256,37 +257,39 @@
       });
     }
 
-    function fetchInputOrderData(badge) {
-      // Opsi 1: Google GViz API
-      Papa.parse(CSV_INPUT_ORDER_URL, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results2) {
-          if (results2.data && results2.data.length > 0) {
-            processOrderDetailsData(results2.data);
+    function fetchOrderSheetOpenAPI(badge) {
+      fetch(OPENSHEET_URL)
+        .then(response => {
+          if (!response.ok) throw new Error('Network error');
+          return response.json();
+        })
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            processOrderDetailsJSON(data);
             badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready`;
           } else {
-            fetchInputOrderFallback(badge);
+            fetchOrderSheetFallbackCSV(badge);
           }
-        },
-        error: function() {
-          fetchInputOrderFallback(badge);
-        }
-      });
+        })
+        .catch(() => {
+          fetchOrderSheetFallbackCSV(badge);
+        });
     }
 
-    function fetchInputOrderFallback(badge) {
-      // Opsi 2: Fallback via CORS Proxy
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(CSV_INPUT_ORDER_URL)}`;
+    function fetchOrderSheetFallbackCSV(badge) {
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(gvizUrl)}`;
+
       Papa.parse(proxyUrl, {
         download: true,
         header: true,
         skipEmptyLines: true,
-        complete: function(results3) {
-          if (results3.data) {
-            processOrderDetailsData(results3.data);
+        complete: function(results) {
+          if (results.data && results.data.length > 0) {
+            processOrderDetailsData(results.data);
             badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready`;
+          } else {
+            badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Order Sheet Error`;
           }
         },
         error: function() {
@@ -345,6 +348,17 @@
             Tidak ada baris data valid yang ditemukan pada sheet.
           </div>`;
       }
+    }
+
+    function processOrderDetailsJSON(data) {
+      orderDetailsData = data.map(item => ({
+        TanggalKirim: (item['Tanggal Kirim'] || item['Tanggal'] || '').trim(),
+        NamaCustomer: (item['Nama Customer'] || item['Customer'] || '').trim(),
+        TransactionNumber: (item['Transaction Number'] || item['No Dokumen'] || '').trim(),
+        NoPO: (item['NO PO'] || '-').trim(),
+        Status: (item['Status'] || '-').trim(),
+        Armada: (item['Armada'] || '-').trim()
+      })).filter(row => row.TransactionNumber !== '');
     }
 
     function processOrderDetailsData(data) {
@@ -571,21 +585,35 @@
       modalContent.classList.add('hidden');
 
       setTimeout(() => {
-        const cleanCustomer = customerName.trim().toLowerCase();
+        const targetTokens = customerName.toLowerCase().split(/\s+/).filter(t => t.length > 2);
         
-        let matches = orderDetailsData.filter(i => {
-          const matchCust = i.NamaCustomer.toLowerCase().includes(cleanCustomer) || cleanCustomer.includes(i.NamaCustomer.toLowerCase());
-          const matchDate = i.TanggalKirim === tanggal;
-          return matchCust && matchDate;
+        let matches = orderDetailsData.filter(item => {
+          const itemCust = item.NamaCustomer.toLowerCase();
+          
+          // Match 1: Eksak atau substring
+          let isMatch = itemCust.includes(customerName.toLowerCase()) || customerName.toLowerCase().includes(itemCust);
+          
+          // Match 2: Fleksibel token kata
+          if (!isMatch && targetTokens.length > 0) {
+            isMatch = targetTokens.some(token => itemCust.includes(token));
+          }
+
+          return isMatch;
         });
 
-        if (matches.length === 0) {
-          matches = orderDetailsData.filter(i => i.NamaCustomer.toLowerCase().includes(cleanCustomer));
-        }
+        // Filter unik berdasarkan TransactionNumber
+        const uniqueMatches = [];
+        const seenTx = new Set();
+        matches.forEach(m => {
+          if (!seenTx.has(m.TransactionNumber)) {
+            seenTx.add(m.TransactionNumber);
+            uniqueMatches.push(m);
+          }
+        });
 
         modalTableBody.innerHTML = '';
 
-        if (matches.length === 0) {
+        if (uniqueMatches.length === 0) {
           modalTableBody.innerHTML = `
             <tr>
               <td colspan="4" class="py-6 text-center text-slate-400">
@@ -595,8 +623,8 @@
             </tr>`;
           docCountBadge.innerText = '0';
         } else {
-          docCountBadge.innerText = matches.length.toString();
-          matches.forEach((doc, idx) => {
+          docCountBadge.innerText = uniqueMatches.length.toString();
+          uniqueMatches.forEach((doc, idx) => {
             modalTableBody.innerHTML += `
               <tr class="hover:bg-slate-50 transition">
                 <td class="py-2.5 px-3 font-medium text-slate-400">${idx + 1}</td>
@@ -618,7 +646,7 @@
 
         modalLoading.classList.add('hidden');
         modalContent.classList.remove('hidden');
-      }, 300);
+      }, 200);
     }
 
     function closeDocumentModal() {
