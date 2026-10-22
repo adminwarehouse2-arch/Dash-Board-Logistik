@@ -172,7 +172,7 @@
     </section>
 
     <!-- SUMMARY METRICS CARDS -->
-    <section id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <section id="summaryCards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Pengiriman</span>
         <span id="metricTotalRows" class="text-2xl font-black text-slate-800">0</span>
@@ -188,6 +188,10 @@
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Cost</span>
         <span id="metricTotalCost" class="text-2xl font-black text-emerald-600">Rp 0</span>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Value Barang</span>
+        <span id="metricTotalValue" class="text-2xl font-black text-purple-600">Rp 0</span>
       </div>
     </section>
 
@@ -273,7 +277,8 @@
           Daerah: (item['Daerah'] || '-').trim(),
           TotalDokumen: parseInt(item['Total Dokumen'] || '0') || 0,
           TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
-          Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0
+          Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0
         };
       }).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
 
@@ -426,11 +431,13 @@
         const items = grouped[armadaName];
         let totalBeratArmada = 0;
         let totalCostArmada = 0;
+        let totalValueArmada = 0;
         let totalDocsArmada = 0;
 
         items.forEach(i => {
           totalBeratArmada += i.TotalBerat;
           totalCostArmada += i.Cost;
+          totalValueArmada += i.Value;
           totalDocsArmada += i.TotalDokumen;
         });
 
@@ -447,6 +454,9 @@
               <td class="py-3 px-4 text-right font-semibold text-emerald-600">
                 ${item.Cost > 0 ? 'Rp ' + item.Cost.toLocaleString('id-ID') : '-'}
               </td>
+              <td class="py-3 px-4 text-right font-semibold text-purple-600">
+                ${item.Value > 0 ? 'Rp ' + item.Value.toLocaleString('id-ID') : 'Rp 0'}
+              </td>
             </tr>`;
         });
 
@@ -458,9 +468,15 @@
                   <i class="fa-solid fa-truck"></i> ${armadaName}
                 </span>
               </div>
-              <div class="text-right">
-                <span class="text-xs text-slate-400 block">Total Cost Armada</span>
-                <span class="text-lg font-extrabold text-amber-400">Rp ${totalCostArmada.toLocaleString('id-ID')}</span>
+              <div class="flex items-center gap-6 text-right">
+                <div>
+                  <span class="text-xs text-slate-400 block">Total Cost</span>
+                  <span class="text-base font-extrabold text-amber-400">Rp ${totalCostArmada.toLocaleString('id-ID')}</span>
+                </div>
+                <div>
+                  <span class="text-xs text-slate-400 block">Total Value Barang</span>
+                  <span class="text-base font-extrabold text-purple-300">Rp ${totalValueArmada.toLocaleString('id-ID')}</span>
+                </div>
               </div>
             </div>
 
@@ -475,6 +491,7 @@
                     <th class="py-2.5 px-4 text-center">Dokumen</th>
                     <th class="py-2.5 px-4 text-right">Berat (gr)</th>
                     <th class="py-2.5 px-4 text-right">Cost</th>
+                    <th class="py-2.5 px-4 text-right">Value Barang</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -486,6 +503,7 @@
                     <td class="py-3 px-4 text-center">${totalDocsArmada}</td>
                     <td class="py-3 px-4 text-right">${totalBeratArmada.toLocaleString('id-ID')} gr</td>
                     <td class="py-3 px-4 text-right text-emerald-700">Rp ${totalCostArmada.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 text-right text-purple-700">Rp ${totalValueArmada.toLocaleString('id-ID')}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -494,6 +512,23 @@
 
         container.innerHTML += cardHtml;
       });
+    }
+
+    // Update Top Overview Metrics
+    function updateMetrics(items) {
+      let docs = 0, weight = 0, cost = 0, val = 0;
+      items.forEach(i => {
+        docs += i.TotalDokumen;
+        weight += i.TotalBerat;
+        cost += i.Cost;
+        val += i.Value;
+      });
+
+      document.getElementById('metricTotalRows').innerText = items.length;
+      document.getElementById('metricTotalDocs').innerText = docs.toLocaleString('id-ID');
+      document.getElementById('metricTotalWeight').innerText = `${weight.toLocaleString('id-ID')} gr`;
+      document.getElementById('metricTotalCost').innerText = `Rp ${cost.toLocaleString('id-ID')}`;
+      document.getElementById('metricTotalValue').innerText = `Rp ${val.toLocaleString('id-ID')}`;
     }
 
     // Update Top Overview Metrics
@@ -554,7 +589,8 @@
         "Daerah": item.Daerah,
         "Total Dokumen": item.TotalDokumen,
         "Total Berat (gr)": item.TotalBerat,
-        "Cost (Rp)": item.Cost
+        "Cost (Rp)": item.Cost,
+        "Value Barang (Rp)": item.Value
       }));
 
       const filename = `Laporan_Logistics_Armada_${new Date().toISOString().slice(0,10)}`;
