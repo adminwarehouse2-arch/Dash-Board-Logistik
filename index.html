@@ -19,7 +19,7 @@
         <i class="fa-solid fa-truck-ramp-box text-2xl text-amber-400"></i>
         <div>
           <h1 class="text-xl font-bold tracking-wide">Logistics Armada Dashboard</h1>
-          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian & Input Order | Auto-Sync & Pop-up Presisi Harian</p>
+          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian & Input Order | Auto-Sync & Grouping Transaction Number</p>
         </div>
       </div>
 
@@ -186,7 +186,7 @@
           <!-- Summary Info Bar -->
           <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-indigo-900 uppercase">Baris Item:</span>
+              <span class="text-xs font-bold text-indigo-900 uppercase">Jumlah Dokumen:</span>
               <span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
             </div>
             <div class="flex items-center space-x-2">
@@ -330,16 +330,15 @@
         </div>`;
     }
 
-    // Standardisasi Format Tanggal ke DD-MM-YYYY
     function normalizeDateString(dateStr) {
       if (!dateStr) return '';
       const str = String(dateStr).trim();
       const parts = str.split(/[-/.]/);
       if (parts.length === 3) {
         let day, month, year;
-        if (parts[0].length === 4) { // YYYY-MM-DD
+        if (parts[0].length === 4) {
           year = parts[0]; month = parts[1]; day = parts[2];
-        } else { // DD-MM-YYYY
+        } else {
           day = parts[0]; month = parts[1]; year = parts[2];
         }
         return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
@@ -385,7 +384,6 @@
       }
     }
 
-    // Mapping Presisi Kolom Sheet INPUT ORDER
     function extractRowFields(item) {
       const getVal = (keys) => {
         for (let k of keys) {
@@ -405,16 +403,16 @@
       return {
         TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
         NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination', 'Destination Code']),
-        TransactionNumber: getVal(['Transaction Number', 'No Dokumen', 'Transaction No']), // G
-        NoPO: getVal(['NO PO', 'PO Number', 'No PO']) || '-', // E
-        Status: getVal(['Status']) || '-', // F
+        TransactionNumber: getVal(['Transaction Number', 'No Dokumen', 'Transaction No']),
+        NoPO: getVal(['NO PO', 'PO Number', 'No PO']) || '-',
+        Status: getVal(['Status']) || '-',
         Armada: getVal(['Armada']) || '-',
-        NamaBarang: getVal(['Product Name', 'Nama Barang', 'Item Name', 'O']) || '-', // O
-        KodeBarang: getVal(['Product Code', 'Kode Barang', 'Item Code', 'P']) || '-', // P
-        Unit: getVal(['Unit', 'Satuan', 'Q']) || 'Pack', // Q
-        Qty: parseNum(getVal(['Qty', 'Quantity', 'R'])), // R
-        DeliveredQty: parseNum(getVal(['Delivered Qty', 'Qty Kirim', 'S'])), // S
-        OutstandingQty: parseNum(getVal(['Outstanding Qty', 'Sisa Qty', 'T'])) // T
+        NamaBarang: getVal(['Product Name', 'Nama Barang', 'Item Name', 'O']) || '-',
+        KodeBarang: getVal(['Product Code', 'Kode Barang', 'Item Code', 'P']) || '-',
+        Unit: getVal(['Unit', 'Satuan', 'Q']) || 'Pack',
+        Qty: parseNum(getVal(['Qty', 'Quantity', 'R'])),
+        DeliveredQty: parseNum(getVal(['Delivered Qty', 'Qty Kirim', 'S'])),
+        OutstandingQty: parseNum(getVal(['Outstanding Qty', 'Sisa Qty', 'T']))
       };
     }
 
@@ -621,7 +619,7 @@
       });
     }
 
-    // POP-UP MODAL TERINTEGRASI & HANYA UNTUK HARI TERSEBUT
+    // POP-UP MODAL TERINTEGRASI & GROUPING DOKUMEN PRESI
     function openDocumentModal(customerName, tanggal) {
       const modal = document.getElementById('documentModal');
       const modalCustomer = document.getElementById('modalCustomerName');
@@ -645,14 +643,12 @@
         const cleanCust = customerName.toLowerCase().trim();
         const normTargetDate = normalizeDateString(tanggal);
 
-        // PENCARIAN STRICT HANYA UNTUK TANGGAL HARI INI
         let matches = orderDetailsData.filter(item => {
           const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
           const dateMatch = item.TanggalKirim === normTargetDate || item.TanggalKirim === '';
           return custMatch && dateMatch;
         });
 
-        // Jika tidak ada kecocokan tanggal kirim, ambil berdasarkan kecocokan nama customer
         if (matches.length === 0) {
           matches = orderDetailsData.filter(item => {
             return item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
@@ -669,46 +665,76 @@
                 Tidak ditemukan rincian barang pada sheet Input Order untuk customer ini.
               </td>
             </tr>`;
-          docCountBadge.innerText = '0';
+          docCountBadge.innerText = '0 Dokumen';
           totalQtyBadge.innerText = '0';
           totalDeliveredBadge.innerText = '0';
           totalOutstandingBadge.innerText = '0';
         } else {
+          // Grouping berdasarkan TransactionNumber
+          const groupedByTx = {};
+          matches.forEach(item => {
+            if (!groupedByTx[item.TransactionNumber]) {
+              groupedByTx[item.TransactionNumber] = [];
+            }
+            groupedByTx[item.TransactionNumber].push(item);
+          });
+
+          const uniqueTxKeys = Object.keys(groupedByTx);
+          docCountBadge.innerText = `${uniqueTxKeys.length} Dokumen (${matches.length} Item)`;
+
           let sumQty = 0;
           let sumDelivered = 0;
           let sumOutstanding = 0;
+          let globalRowIndex = 1;
 
-          docCountBadge.innerText = matches.length.toString();
+          uniqueTxKeys.forEach((txNo, txIndex) => {
+            const items = groupedByTx[txNo];
+            const firstItem = items[0];
 
-          matches.forEach((doc, idx) => {
-            sumQty += doc.Qty;
-            sumDelivered += doc.DeliveredQty;
-            sumOutstanding += doc.OutstandingQty;
-
+            // Render Header Group Per Dokumen / Transaction Number
             modalTableBody.innerHTML += `
-              <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                <td class="py-2.5 px-3 text-center font-medium text-slate-400">${idx + 1}</td>
-                <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">
-                  <div class="flex items-center justify-between gap-2">
-                    <span>${doc.TransactionNumber}</span>
-                    <button onclick="copyToClipboard('${doc.TransactionNumber}')" class="text-slate-400 hover:text-indigo-600 p-1" title="Salin No Transaksi">
-                      <i class="fa-solid fa-copy"></i>
-                    </button>
+              <tr class="bg-indigo-900 text-white font-bold text-xs">
+                <td colspan="10" class="py-2 px-3 bg-indigo-950">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <span class="bg-amber-400 text-slate-900 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-extrabold">
+                        DOKUMEN #${txIndex + 1}
+                      </span>
+                      <span class="font-mono text-amber-300 text-sm tracking-wide">${txNo}</span>
+                      <button onclick="copyToClipboard('${txNo}')" class="text-indigo-200 hover:text-white p-1 text-xs" title="Salin No Transaksi">
+                        <i class="fa-solid fa-copy"></i>
+                      </button>
+                    </div>
+                    <div class="text-indigo-200 text-xs font-normal">
+                      NO PO: <span class="font-semibold text-white">${firstItem.NoPO}</span> | Status: <span class="font-semibold text-emerald-300">${firstItem.Status}</span>
+                    </div>
                   </div>
                 </td>
-                <td class="py-2.5 px-3 text-slate-600 font-medium">${doc.NoPO}</td>
-                <td class="py-2.5 px-3 font-mono text-indigo-900 font-semibold">${doc.KodeBarang}</td>
-                <td class="py-2.5 px-3 font-semibold text-slate-800">${doc.NamaBarang}</td>
-                <td class="py-2.5 px-3 text-center text-slate-500 font-medium">${doc.Unit}</td>
-                <td class="py-2.5 px-3 text-center font-extrabold text-amber-600">${doc.Qty.toLocaleString('id-ID')}</td>
-                <td class="py-2.5 px-3 text-center font-extrabold text-emerald-600">${doc.DeliveredQty.toLocaleString('id-ID')}</td>
-                <td class="py-2.5 px-3 text-center font-extrabold text-rose-600">${doc.OutstandingQty.toLocaleString('id-ID')}</td>
-                <td class="py-2.5 px-3 text-center">
-                  <span class="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded font-semibold border">
-                    ${doc.Status}
-                  </span>
-                </td>
               </tr>`;
+
+            items.forEach(doc => {
+              sumQty += doc.Qty;
+              sumDelivered += doc.DeliveredQty;
+              sumOutstanding += doc.OutstandingQty;
+
+              modalTableBody.innerHTML += `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                  <td class="py-2.5 px-3 text-center font-medium text-slate-400">${globalRowIndex++}</td>
+                  <td class="py-2.5 px-3 font-mono font-semibold text-indigo-700">${doc.TransactionNumber}</td>
+                  <td class="py-2.5 px-3 text-slate-600 font-medium">${doc.NoPO}</td>
+                  <td class="py-2.5 px-3 font-mono text-indigo-900 font-semibold">${doc.KodeBarang}</td>
+                  <td class="py-2.5 px-3 font-semibold text-slate-800">${doc.NamaBarang}</td>
+                  <td class="py-2.5 px-3 text-center text-slate-500 font-medium">${doc.Unit}</td>
+                  <td class="py-2.5 px-3 text-center font-extrabold text-amber-600">${doc.Qty.toLocaleString('id-ID')}</td>
+                  <td class="py-2.5 px-3 text-center font-extrabold text-emerald-600">${doc.DeliveredQty.toLocaleString('id-ID')}</td>
+                  <td class="py-2.5 px-3 text-center font-extrabold text-rose-600">${doc.OutstandingQty.toLocaleString('id-ID')}</td>
+                  <td class="py-2.5 px-3 text-center">
+                    <span class="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded font-semibold border">
+                      ${doc.Status}
+                    </span>
+                  </td>
+                </tr>`;
+            });
           });
 
           totalQtyBadge.innerText = sumQty.toLocaleString('id-ID');
