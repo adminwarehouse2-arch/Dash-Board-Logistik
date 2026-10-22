@@ -19,7 +19,7 @@
         <i class="fa-solid fa-truck-ramp-box text-2xl text-amber-400"></i>
         <div>
           <h1 class="text-xl font-bold tracking-wide">Logistics Armada Dashboard</h1>
-          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian & Input Order | Auto-Sync & Pop-up Dokumen</p>
+          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian & Input Order | Auto-Sync & Detail Rincian Barang (Kolom P,O,Q,R,S,T)</p>
         </div>
       </div>
 
@@ -155,17 +155,19 @@
 
   </main>
 
-  <!-- POP-UP MODAL DETAIL TRANSACTION NUMBER / DOKUMEN -->
-  <div id="documentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden transform transition-all duration-300">
-      <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+  <!-- POP-UP MODAL DETAIL TRANSACTION NUMBER & ITEM DATA (Kolom P,O,Q,R,S,T) -->
+  <div id="documentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 md:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-300">
+      
+      <!-- Modal Header -->
+      <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
         <div class="flex items-center space-x-3">
           <div class="bg-amber-400 p-2 rounded-lg text-slate-900">
-            <i class="fa-solid fa-file-circle-check text-lg"></i>
+            <i class="fa-solid fa-boxes-packing text-lg"></i>
           </div>
           <div>
             <h3 class="font-bold text-lg leading-tight" id="modalCustomerName">Detail Dokumen Customer</h3>
-            <p class="text-xs text-indigo-200" id="modalSubTitle">Nomor Transaksi dari Sheet Input Order</p>
+            <p class="text-xs text-indigo-200" id="modalSubTitle">Rincian Barang & Transaksi dari Sheet Input Order</p>
           </div>
         </div>
         <button onclick="closeDocumentModal()" class="text-indigo-200 hover:text-white text-xl font-bold p-1 transition">
@@ -173,40 +175,61 @@
         </button>
       </div>
 
-      <div class="p-6">
-        <div id="modalLoading" class="text-center py-8">
-          <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-600 mb-2"></i>
-          <p class="text-sm text-slate-500 font-medium">Mencari nomor dokumen terkait...</p>
+      <!-- Modal Body -->
+      <div class="p-4 md:p-6 overflow-y-auto flex-1">
+        <div id="modalLoading" class="text-center py-12">
+          <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
+          <p class="text-sm text-slate-500 font-medium">Mencari & memuat rincian item barang...</p>
         </div>
 
-        <div id="modalContent" class="hidden">
-          <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4 flex justify-between items-center">
-            <span class="text-xs font-bold text-slate-600 uppercase">Jumlah Dokumen Ditemukan:</span>
-            <span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold">0</span>
+        <div id="modalContent" class="hidden space-y-4">
+          <!-- Summary Info Bar -->
+          <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-indigo-900 uppercase">Jumlah Baris Item:</span>
+              <span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-600 uppercase">Total Qty:</span>
+              <span id="modalTotalQtyBadge" class="bg-amber-500 text-slate-900 px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-600 uppercase">Total Amount:</span>
+              <span id="modalTotalAmountBadge" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">Rp 0</span>
+            </div>
           </div>
 
-          <div class="max-h-72 overflow-y-auto border border-slate-200 rounded-lg">
-            <table class="w-full text-left border-collapse text-sm">
-              <thead class="bg-slate-100 text-slate-600 text-xs uppercase sticky top-0">
+          <!-- Table Container -->
+          <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
+            <table class="w-full text-left border-collapse text-xs md:text-sm">
+              <thead class="bg-slate-800 text-white uppercase text-[11px] tracking-wider sticky top-0 z-10">
                 <tr>
-                  <th class="py-2.5 px-3">No</th>
-                  <th class="py-2.5 px-3">Transaction Number (Dokumen)</th>
-                  <th class="py-2.5 px-3">NO PO / Ket</th>
-                  <th class="py-2.5 px-3 text-center">Status</th>
+                  <th class="py-3 px-3 text-center">No</th>
+                  <th class="py-3 px-3">Transaction No (G)</th>
+                  <th class="py-3 px-3">NO PO / Ket (E)</th>
+                  <th class="py-3 px-3">Kode Barang (P)</th>
+                  <th class="py-3 px-3 min-w-[180px]">Nama Barang (O)</th>
+                  <th class="py-3 px-3 text-center">Qty (Q)</th>
+                  <th class="py-3 px-3 text-right">Unit Price (R)</th>
+                  <th class="py-3 px-3 text-right">Discount (S)</th>
+                  <th class="py-3 px-3 text-right">Total Amount (T)</th>
+                  <th class="py-3 px-3 text-center">Status (F)</th>
                 </tr>
               </thead>
-              <tbody id="modalTableBody" class="divide-y divide-slate-100"></tbody>
+              <tbody id="modalTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
-        <span>Source: Sheet Input Order (Kolom G)</span>
-        <button onclick="closeDocumentModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold transition">
+      <!-- Modal Footer -->
+      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 flex-shrink-0">
+        <span class="italic"><i class="fa-solid fa-database mr-1"></i> Source: Sheet Input Order (Kolom G, E, F, O, P, Q, R, S, T)</span>
+        <button onclick="closeDocumentModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2 rounded-lg font-bold transition">
           Tutup
         </button>
       </div>
+
     </div>
   </div>
 
@@ -350,26 +373,44 @@
       }
     }
 
+    // Ekstraksi Kolom G, E, F, P, O, Q, R, S, T dari JSON / CSV
+    function extractRowFields(item) {
+      const getVal = (keys) => {
+        for (let k of keys) {
+          if (item[k] !== undefined && item[k] !== null) return String(item[k]).trim();
+        }
+        return '';
+      };
+
+      const parseNum = (str) => {
+        if (!str) return 0;
+        const cleaned = str.replace(/[^0-9.-]/g, '');
+        return parseFloat(cleaned) || 0;
+      };
+
+      return {
+        TanggalKirim: getVal(['Tanggal Kirim', 'Tanggal']),
+        NamaCustomer: getVal(['Nama Customer', 'Customer']),
+        TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
+        NoPO: getVal(['NO PO', 'PO Number', 'No PO']) || '-',
+        Status: getVal(['Status']) || '-',
+        Armada: getVal(['Armada']) || '-',
+        // Kolom Tambahan P, O, Q, R, S, T
+        KodeBarang: getVal(['Item Code', 'Kode Barang', 'Item No', 'Kode']) || '-', // P
+        NamaBarang: getVal(['Item Name', 'Nama Barang', 'Item Description', 'Deskripsi']) || '-', // O
+        Qty: parseNum(getVal(['Quantity', 'Qty', 'Jumlah'])), // Q
+        UnitPrice: parseNum(getVal(['Unit Price', 'Harga Satuan', 'Price'])), // R
+        Discount: parseNum(getVal(['Discount', 'Diskon'])), // S
+        TotalAmount: parseNum(getVal(['Total Amount', 'Total', 'Amount', 'Subtotal'])) // T
+      };
+    }
+
     function processOrderDetailsJSON(data) {
-      orderDetailsData = data.map(item => ({
-        TanggalKirim: (item['Tanggal Kirim'] || item['Tanggal'] || '').trim(),
-        NamaCustomer: (item['Nama Customer'] || item['Customer'] || '').trim(),
-        TransactionNumber: (item['Transaction Number'] || item['No Dokumen'] || '').trim(),
-        NoPO: (item['NO PO'] || '-').trim(),
-        Status: (item['Status'] || '-').trim(),
-        Armada: (item['Armada'] || '-').trim()
-      })).filter(row => row.TransactionNumber !== '');
+      orderDetailsData = data.map(item => extractRowFields(item)).filter(row => row.TransactionNumber !== '');
     }
 
     function processOrderDetailsData(data) {
-      orderDetailsData = data.map(item => ({
-        TanggalKirim: (item['Tanggal Kirim'] || item['Tanggal'] || '').trim(),
-        NamaCustomer: (item['Nama Customer'] || item['Customer'] || '').trim(),
-        TransactionNumber: (item['Transaction Number'] || item['No Dokumen'] || '').trim(),
-        NoPO: (item['NO PO'] || '-').trim(),
-        Status: (item['Status'] || '-').trim(),
-        Armada: (item['Armada'] || '-').trim()
-      })).filter(row => row.TransactionNumber !== '');
+      orderDetailsData = data.map(item => extractRowFields(item)).filter(row => row.TransactionNumber !== '');
     }
 
     function populateFilters() {
@@ -498,7 +539,7 @@
               <td class="py-3 px-4 text-center">
                 <button onclick="openDocumentModal('${safeCustomer}', '${safeTanggal}')" 
                         class="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-extrabold px-3 py-1 rounded-lg transition border border-indigo-200 hover:border-indigo-600 shadow-sm cursor-pointer"
-                        title="Klik untuk melihat nomor dokumen/Transaction Number">
+                        title="Klik untuk melihat nomor dokumen & rincian barang">
                   <span>${item.TotalDokumen}</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                 </button>
@@ -567,7 +608,7 @@
       });
     }
 
-    // FUNGSIONALITAS POP-UP MODAL DETAIL DOKUMEN
+    // FUNGSIONALITAS POP-UP MODAL DETAIL DOKUMEN & RINCIAN BARANG (Kolom P,O,Q,R,S,T)
     function openDocumentModal(customerName, tanggal) {
       const modal = document.getElementById('documentModal');
       const modalCustomer = document.getElementById('modalCustomerName');
@@ -576,6 +617,8 @@
       const modalContent = document.getElementById('modalContent');
       const modalTableBody = document.getElementById('modalTableBody');
       const docCountBadge = document.getElementById('modalDocCountBadge');
+      const totalQtyBadge = document.getElementById('modalTotalQtyBadge');
+      const totalAmountBadge = document.getElementById('modalTotalAmountBadge');
 
       modalCustomer.innerText = customerName;
       modalSubTitle.innerText = `Tanggal Kirim: ${tanggal}`;
@@ -590,10 +633,8 @@
         let matches = orderDetailsData.filter(item => {
           const itemCust = item.NamaCustomer.toLowerCase();
           
-          // Match 1: Eksak atau substring
           let isMatch = itemCust.includes(customerName.toLowerCase()) || customerName.toLowerCase().includes(itemCust);
           
-          // Match 2: Fleksibel token kata
           if (!isMatch && targetTokens.length > 0) {
             isMatch = targetTokens.some(token => itemCust.includes(token));
           }
@@ -601,40 +642,47 @@
           return isMatch;
         });
 
-        // Filter unik berdasarkan TransactionNumber
-        const uniqueMatches = [];
-        const seenTx = new Set();
-        matches.forEach(m => {
-          if (!seenTx.has(m.TransactionNumber)) {
-            seenTx.add(m.TransactionNumber);
-            uniqueMatches.push(m);
-          }
-        });
-
         modalTableBody.innerHTML = '';
 
-        if (uniqueMatches.length === 0) {
+        if (matches.length === 0) {
           modalTableBody.innerHTML = `
             <tr>
-              <td colspan="4" class="py-6 text-center text-slate-400">
-                <i class="fa-solid fa-folder-open text-2xl mb-1 block"></i>
+              <td colspan="10" class="py-8 text-center text-slate-400">
+                <i class="fa-solid fa-folder-open text-3xl mb-2 block"></i>
                 Tidak ditemukan rincian nomor transaksi di sheet Input Order.
               </td>
             </tr>`;
           docCountBadge.innerText = '0';
+          totalQtyBadge.innerText = '0';
+          totalAmountBadge.innerText = 'Rp 0';
         } else {
-          docCountBadge.innerText = uniqueMatches.length.toString();
-          uniqueMatches.forEach((doc, idx) => {
+          let totalQty = 0;
+          let totalAmountSum = 0;
+
+          docCountBadge.innerText = matches.length.toString();
+
+          matches.forEach((doc, idx) => {
+            totalQty += doc.Qty;
+            totalAmountSum += doc.TotalAmount;
+
             modalTableBody.innerHTML += `
-              <tr class="hover:bg-slate-50 transition">
-                <td class="py-2.5 px-3 font-medium text-slate-400">${idx + 1}</td>
-                <td class="py-2.5 px-3 font-mono font-bold text-indigo-700 flex items-center justify-between">
-                  <span>${doc.TransactionNumber}</span>
-                  <button onclick="copyToClipboard('${doc.TransactionNumber}')" class="text-slate-400 hover:text-indigo-600 p-1 text-xs" title="Salin No Transaksi">
-                    <i class="fa-solid fa-copy"></i>
-                  </button>
+              <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                <td class="py-2.5 px-3 text-center font-medium text-slate-400">${idx + 1}</td>
+                <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">
+                  <div class="flex items-center justify-between gap-2">
+                    <span>${doc.TransactionNumber}</span>
+                    <button onclick="copyToClipboard('${doc.TransactionNumber}')" class="text-slate-400 hover:text-indigo-600 p-1" title="Salin No Transaksi">
+                      <i class="fa-solid fa-copy"></i>
+                    </button>
+                  </div>
                 </td>
-                <td class="py-2.5 px-3 text-slate-600 text-xs">${doc.NoPO}</td>
+                <td class="py-2.5 px-3 text-slate-600 font-medium">${doc.NoPO}</td>
+                <td class="py-2.5 px-3 font-mono text-indigo-900 font-semibold">${doc.KodeBarang}</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-800">${doc.NamaBarang}</td>
+                <td class="py-2.5 px-3 text-center font-extrabold text-amber-600">${doc.Qty.toLocaleString('id-ID')}</td>
+                <td class="py-2.5 px-3 text-right font-medium text-slate-600">${doc.UnitPrice > 0 ? 'Rp ' + doc.UnitPrice.toLocaleString('id-ID') : '-'}</td>
+                <td class="py-2.5 px-3 text-right font-medium text-slate-500">${doc.Discount > 0 ? 'Rp ' + doc.Discount.toLocaleString('id-ID') : '-'}</td>
+                <td class="py-2.5 px-3 text-right font-bold text-emerald-600">${doc.TotalAmount > 0 ? 'Rp ' + doc.TotalAmount.toLocaleString('id-ID') : '-'}</td>
                 <td class="py-2.5 px-3 text-center">
                   <span class="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded font-semibold border">
                     ${doc.Status}
@@ -642,6 +690,9 @@
                 </td>
               </tr>`;
           });
+
+          totalQtyBadge.innerText = totalQty.toLocaleString('id-ID');
+          totalAmountBadge.innerText = 'Rp ' + totalAmountSum.toLocaleString('id-ID');
         }
 
         modalLoading.classList.add('hidden');
