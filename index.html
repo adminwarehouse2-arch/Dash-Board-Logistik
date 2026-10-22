@@ -19,7 +19,7 @@
         <i class="fa-solid fa-truck-ramp-box text-2xl text-amber-400"></i>
         <div>
           <h1 class="text-xl font-bold tracking-wide">Logistics Armada Dashboard</h1>
-          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian & Input Order | Auto-Sync & Detail Rincian Barang (Kolom P,O,Q,R,S,T)</p>
+          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian & Input Order | Auto-Sync & Pop-up Presisi Harian</p>
         </div>
       </div>
 
@@ -101,7 +101,7 @@
       </div>
     </section>
 
-    <!-- SLIDE NAVIGATOR PER TANGGAL (Aktif jika rentang tanggal kosong) -->
+    <!-- SLIDE NAVIGATOR PER TANGGAL -->
     <section id="dateNavigator" class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="flex items-center space-x-2">
         <button onclick="slideDate(-1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 px-3 py-2 rounded-lg shadow-sm transition text-sm font-semibold">
@@ -155,9 +155,9 @@
 
   </main>
 
-  <!-- POP-UP MODAL DETAIL TRANSACTION NUMBER & ITEM DATA (Kolom P,O,Q,R,S,T) -->
+  <!-- POP-UP MODAL DETAIL TRANSACTION NUMBER & ITEM DATA -->
   <div id="documentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 md:p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-300">
       
       <!-- Modal Header -->
       <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
@@ -167,7 +167,7 @@
           </div>
           <div>
             <h3 class="font-bold text-lg leading-tight" id="modalCustomerName">Detail Dokumen Customer</h3>
-            <p class="text-xs text-indigo-200" id="modalSubTitle">Rincian Barang & Transaksi dari Sheet Input Order</p>
+            <p class="text-xs text-indigo-200" id="modalSubTitle">Rincian Dokumen & Barang Hari Ini</p>
           </div>
         </div>
         <button onclick="closeDocumentModal()" class="text-indigo-200 hover:text-white text-xl font-bold p-1 transition">
@@ -179,23 +179,27 @@
       <div class="p-4 md:p-6 overflow-y-auto flex-1">
         <div id="modalLoading" class="text-center py-12">
           <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
-          <p class="text-sm text-slate-500 font-medium">Mencari & memuat rincian item barang...</p>
+          <p class="text-sm text-slate-500 font-medium">Memuat rincian item barang...</p>
         </div>
 
         <div id="modalContent" class="hidden space-y-4">
           <!-- Summary Info Bar -->
           <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-indigo-900 uppercase">Jumlah Baris Item:</span>
+              <span class="text-xs font-bold text-indigo-900 uppercase">Baris Item:</span>
               <span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
             </div>
             <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-slate-600 uppercase">Total Qty:</span>
+              <span class="text-xs font-bold text-slate-600 uppercase">Total Qty Order (R):</span>
               <span id="modalTotalQtyBadge" class="bg-amber-500 text-slate-900 px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
             </div>
             <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-slate-600 uppercase">Total Amount:</span>
-              <span id="modalTotalAmountBadge" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">Rp 0</span>
+              <span class="text-xs font-bold text-slate-600 uppercase">Total Delivered (S):</span>
+              <span id="modalTotalDeliveredBadge" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-600 uppercase">Outstanding (T):</span>
+              <span id="modalTotalOutstandingBadge" class="bg-rose-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
             </div>
           </div>
 
@@ -208,11 +212,11 @@
                   <th class="py-3 px-3">Transaction No (G)</th>
                   <th class="py-3 px-3">NO PO / Ket (E)</th>
                   <th class="py-3 px-3">Kode Barang (P)</th>
-                  <th class="py-3 px-3 min-w-[180px]">Nama Barang (O)</th>
-                  <th class="py-3 px-3 text-center">Qty (Q)</th>
-                  <th class="py-3 px-3 text-right">Unit Price (R)</th>
-                  <th class="py-3 px-3 text-right">Discount (S)</th>
-                  <th class="py-3 px-3 text-right">Total Amount (T)</th>
+                  <th class="py-3 px-3 min-w-[200px]">Nama Barang (O)</th>
+                  <th class="py-3 px-3 text-center">Unit (Q)</th>
+                  <th class="py-3 px-3 text-center">Qty (R)</th>
+                  <th class="py-3 px-3 text-center">Delivered Qty (S)</th>
+                  <th class="py-3 px-3 text-center">Outstanding Qty (T)</th>
                   <th class="py-3 px-3 text-center">Status (F)</th>
                 </tr>
               </thead>
@@ -235,8 +239,6 @@
 
   <script>
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
-    
-    // OpenSheet API Endpoint untuk Sheet INPUT ORDER
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const OPENSHEET_URL = `https://opensheet.elk.sh/${SHEET_ID}/INPUT%20ORDER`;
 
@@ -259,7 +261,6 @@
           <p class="text-slate-600 font-medium">Mengambil data Jadwal Harian & Input Order...</p>
         </div>`;
 
-      // Fetch Sheet 1: Jadwal Harian
       Papa.parse(CSV_JADWAL_URL, {
         download: true,
         header: true,
@@ -267,8 +268,6 @@
         complete: function(results1) {
           if (results1.data && results1.data.length > 0) {
             processRawData(results1.data);
-            
-            // Fetch Sheet 2: INPUT ORDER via OpenSheet API (Bypass CORS)
             fetchOrderSheetOpenAPI(badge);
           } else {
             showError();
@@ -331,23 +330,36 @@
         </div>`;
     }
 
+    // Standardisasi Format Tanggal ke DD-MM-YYYY
+    function normalizeDateString(dateStr) {
+      if (!dateStr) return '';
+      const str = String(dateStr).trim();
+      const parts = str.split(/[-/.]/);
+      if (parts.length === 3) {
+        let day, month, year;
+        if (parts[0].length === 4) { // YYYY-MM-DD
+          year = parts[0]; month = parts[1]; day = parts[2];
+        } else { // DD-MM-YYYY
+          day = parts[0]; month = parts[1]; year = parts[2];
+        }
+        return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+      }
+      return str;
+    }
+
     function processRawData(data) {
       rawData = data.map(item => {
         const rawDate = (item['Tanggal'] || '').trim();
+        const normDate = normalizeDateString(rawDate);
         let parsedISO = null;
-        if (rawDate) {
-          const parts = rawDate.split(/[-/]/);
-          if (parts.length === 3) {
-            if (parts[2].length === 4) {
-              parsedISO = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else if (parts[0].length === 4) {
-              parsedISO = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-            }
-          }
+
+        if (normDate) {
+          const parts = normDate.split('-');
+          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
 
         return {
-          Tanggal: rawDate,
+          Tanggal: normDate || rawDate,
           ISODate: parsedISO,
           Customer: (item['Customer'] || '').trim(),
           Armada: (item['Armada'] || 'Lainnya').trim(),
@@ -373,35 +385,36 @@
       }
     }
 
-    // Ekstraksi Kolom G, E, F, P, O, Q, R, S, T dari JSON / CSV
+    // Mapping Presisi Kolom Sheet INPUT ORDER
     function extractRowFields(item) {
       const getVal = (keys) => {
         for (let k of keys) {
-          if (item[k] !== undefined && item[k] !== null) return String(item[k]).trim();
+          if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+            return String(item[k]).trim();
+          }
         }
         return '';
       };
 
-      const parseNum = (str) => {
-        if (!str) return 0;
-        const cleaned = str.replace(/[^0-9.-]/g, '');
+      const parseNum = (val) => {
+        if (!val) return 0;
+        const cleaned = String(val).replace(/[^0-9.-]/g, '');
         return parseFloat(cleaned) || 0;
       };
 
       return {
-        TanggalKirim: getVal(['Tanggal Kirim', 'Tanggal']),
-        NamaCustomer: getVal(['Nama Customer', 'Customer']),
-        TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
-        NoPO: getVal(['NO PO', 'PO Number', 'No PO']) || '-',
-        Status: getVal(['Status']) || '-',
+        TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
+        NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination', 'Destination Code']),
+        TransactionNumber: getVal(['Transaction Number', 'No Dokumen', 'Transaction No']), // G
+        NoPO: getVal(['NO PO', 'PO Number', 'No PO']) || '-', // E
+        Status: getVal(['Status']) || '-', // F
         Armada: getVal(['Armada']) || '-',
-        // Kolom Tambahan P, O, Q, R, S, T
-        KodeBarang: getVal(['Item Code', 'Kode Barang', 'Item No', 'Kode']) || '-', // P
-        NamaBarang: getVal(['Item Name', 'Nama Barang', 'Item Description', 'Deskripsi']) || '-', // O
-        Qty: parseNum(getVal(['Quantity', 'Qty', 'Jumlah'])), // Q
-        UnitPrice: parseNum(getVal(['Unit Price', 'Harga Satuan', 'Price'])), // R
-        Discount: parseNum(getVal(['Discount', 'Diskon'])), // S
-        TotalAmount: parseNum(getVal(['Total Amount', 'Total', 'Amount', 'Subtotal'])) // T
+        NamaBarang: getVal(['Product Name', 'Nama Barang', 'Item Name', 'O']) || '-', // O
+        KodeBarang: getVal(['Product Code', 'Kode Barang', 'Item Code', 'P']) || '-', // P
+        Unit: getVal(['Unit', 'Satuan', 'Q']) || 'Pack', // Q
+        Qty: parseNum(getVal(['Qty', 'Quantity', 'R'])), // R
+        DeliveredQty: parseNum(getVal(['Delivered Qty', 'Qty Kirim', 'S'])), // S
+        OutstandingQty: parseNum(getVal(['Outstanding Qty', 'Sisa Qty', 'T'])) // T
       };
     }
 
@@ -539,7 +552,7 @@
               <td class="py-3 px-4 text-center">
                 <button onclick="openDocumentModal('${safeCustomer}', '${safeTanggal}')" 
                         class="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-extrabold px-3 py-1 rounded-lg transition border border-indigo-200 hover:border-indigo-600 shadow-sm cursor-pointer"
-                        title="Klik untuk melihat nomor dokumen & rincian barang">
+                        title="Klik untuk melihat detail dokumen pengiriman hari ini">
                   <span>${item.TotalDokumen}</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                 </button>
@@ -608,7 +621,7 @@
       });
     }
 
-    // FUNGSIONALITAS POP-UP MODAL DETAIL DOKUMEN & RINCIAN BARANG (Kolom P,O,Q,R,S,T)
+    // POP-UP MODAL TERINTEGRASI & HANYA UNTUK HARI TERSEBUT
     function openDocumentModal(customerName, tanggal) {
       const modal = document.getElementById('documentModal');
       const modalCustomer = document.getElementById('modalCustomerName');
@@ -618,7 +631,8 @@
       const modalTableBody = document.getElementById('modalTableBody');
       const docCountBadge = document.getElementById('modalDocCountBadge');
       const totalQtyBadge = document.getElementById('modalTotalQtyBadge');
-      const totalAmountBadge = document.getElementById('modalTotalAmountBadge');
+      const totalDeliveredBadge = document.getElementById('modalTotalDeliveredBadge');
+      const totalOutstandingBadge = document.getElementById('modalTotalOutstandingBadge');
 
       modalCustomer.innerText = customerName;
       modalSubTitle.innerText = `Tanggal Kirim: ${tanggal}`;
@@ -628,19 +642,22 @@
       modalContent.classList.add('hidden');
 
       setTimeout(() => {
-        const targetTokens = customerName.toLowerCase().split(/\s+/).filter(t => t.length > 2);
-        
-        let matches = orderDetailsData.filter(item => {
-          const itemCust = item.NamaCustomer.toLowerCase();
-          
-          let isMatch = itemCust.includes(customerName.toLowerCase()) || customerName.toLowerCase().includes(itemCust);
-          
-          if (!isMatch && targetTokens.length > 0) {
-            isMatch = targetTokens.some(token => itemCust.includes(token));
-          }
+        const cleanCust = customerName.toLowerCase().trim();
+        const normTargetDate = normalizeDateString(tanggal);
 
-          return isMatch;
+        // PENCARIAN STRICT HANYA UNTUK TANGGAL HARI INI
+        let matches = orderDetailsData.filter(item => {
+          const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
+          const dateMatch = item.TanggalKirim === normTargetDate || item.TanggalKirim === '';
+          return custMatch && dateMatch;
         });
+
+        // Jika tidak ada kecocokan tanggal kirim, ambil berdasarkan kecocokan nama customer
+        if (matches.length === 0) {
+          matches = orderDetailsData.filter(item => {
+            return item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
+          });
+        }
 
         modalTableBody.innerHTML = '';
 
@@ -649,21 +666,24 @@
             <tr>
               <td colspan="10" class="py-8 text-center text-slate-400">
                 <i class="fa-solid fa-folder-open text-3xl mb-2 block"></i>
-                Tidak ditemukan rincian nomor transaksi di sheet Input Order.
+                Tidak ditemukan rincian barang pada sheet Input Order untuk customer ini.
               </td>
             </tr>`;
           docCountBadge.innerText = '0';
           totalQtyBadge.innerText = '0';
-          totalAmountBadge.innerText = 'Rp 0';
+          totalDeliveredBadge.innerText = '0';
+          totalOutstandingBadge.innerText = '0';
         } else {
-          let totalQty = 0;
-          let totalAmountSum = 0;
+          let sumQty = 0;
+          let sumDelivered = 0;
+          let sumOutstanding = 0;
 
           docCountBadge.innerText = matches.length.toString();
 
           matches.forEach((doc, idx) => {
-            totalQty += doc.Qty;
-            totalAmountSum += doc.TotalAmount;
+            sumQty += doc.Qty;
+            sumDelivered += doc.DeliveredQty;
+            sumOutstanding += doc.OutstandingQty;
 
             modalTableBody.innerHTML += `
               <tr class="hover:bg-slate-50 transition border-b border-slate-100">
@@ -679,10 +699,10 @@
                 <td class="py-2.5 px-3 text-slate-600 font-medium">${doc.NoPO}</td>
                 <td class="py-2.5 px-3 font-mono text-indigo-900 font-semibold">${doc.KodeBarang}</td>
                 <td class="py-2.5 px-3 font-semibold text-slate-800">${doc.NamaBarang}</td>
+                <td class="py-2.5 px-3 text-center text-slate-500 font-medium">${doc.Unit}</td>
                 <td class="py-2.5 px-3 text-center font-extrabold text-amber-600">${doc.Qty.toLocaleString('id-ID')}</td>
-                <td class="py-2.5 px-3 text-right font-medium text-slate-600">${doc.UnitPrice > 0 ? 'Rp ' + doc.UnitPrice.toLocaleString('id-ID') : '-'}</td>
-                <td class="py-2.5 px-3 text-right font-medium text-slate-500">${doc.Discount > 0 ? 'Rp ' + doc.Discount.toLocaleString('id-ID') : '-'}</td>
-                <td class="py-2.5 px-3 text-right font-bold text-emerald-600">${doc.TotalAmount > 0 ? 'Rp ' + doc.TotalAmount.toLocaleString('id-ID') : '-'}</td>
+                <td class="py-2.5 px-3 text-center font-extrabold text-emerald-600">${doc.DeliveredQty.toLocaleString('id-ID')}</td>
+                <td class="py-2.5 px-3 text-center font-extrabold text-rose-600">${doc.OutstandingQty.toLocaleString('id-ID')}</td>
                 <td class="py-2.5 px-3 text-center">
                   <span class="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded font-semibold border">
                     ${doc.Status}
@@ -691,8 +711,9 @@
               </tr>`;
           });
 
-          totalQtyBadge.innerText = totalQty.toLocaleString('id-ID');
-          totalAmountBadge.innerText = 'Rp ' + totalAmountSum.toLocaleString('id-ID');
+          totalQtyBadge.innerText = sumQty.toLocaleString('id-ID');
+          totalDeliveredBadge.innerText = sumDelivered.toLocaleString('id-ID');
+          totalOutstandingBadge.innerText = sumOutstanding.toLocaleString('id-ID');
         }
 
         modalLoading.classList.add('hidden');
