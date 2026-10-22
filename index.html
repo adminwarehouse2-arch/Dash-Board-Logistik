@@ -3,43 +3,94 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Logistics Armada Dashboard</title>
-  <!-- Tailwind CSS & FontAwesome -->
+  <title>Logistics Armada Dashboard & Export Center</title>
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <!-- PapaParse untuk parsing CSV -->
+
+  <!-- PapaParse for CSV parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+  <!-- SheetJS (XLSX) for Excel Exporting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .card-box {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        break-inside: avoid;
+      }
+    }
+    .print-only {
+      display: none;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col justify-between">
 
   <!-- HEADER -->
-  <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+  <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50 no-print">
     <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="flex items-center space-x-3">
-        <i class="fa-solid fa-truck-ramp-box text-2xl text-amber-400"></i>
+        <i class="fa-solid fa-truck-ramp-box text-3xl text-amber-400"></i>
         <div>
           <h1 class="text-xl font-bold tracking-wide">Logistics Armada Dashboard</h1>
-          <p class="text-xs text-indigo-200">Sheet: Jadwal Harian | Auto-Sync & Search Customer Mode</p>
+          <p class="text-xs text-indigo-200">Google Sheets Sync, Customer Search & Custom Data Export</p>
         </div>
       </div>
 
-      <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
-        <i class="fa-solid fa-rotate"></i> Sync / Refresh Data
-      </button>
+      <div class="flex items-center gap-3">
+        <button onclick="triggerPrint()" class="bg-slate-700 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
+          <i class="fa-solid fa-print"></i> Print Report
+        </button>
+        <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
+          <i class="fa-solid fa-rotate"></i> Sync Data
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 mt-6">
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 mt-6 mb-12 w-full flex-grow">
 
-    <!-- FILTER & SEARCH BAR -->
-    <section class="bg-white p-4 rounded-xl shadow-md border border-slate-200 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Search -->
+    <!-- PRINT REPORT HEADER (Only visible when printing) -->
+    <div class="print-only mb-6 border-b pb-4">
+      <h1 class="text-2xl font-bold text-slate-900">Laporan Pengiriman Logistics Armada</h1>
+      <p class="text-sm text-slate-600" id="printReportSubtitle">Tanggal Cetak: -</p>
+    </div>
+
+    <!-- MAIN CONTROL PANEL (SEARCH, FILTERS, EXPORT & DATE RANGES) -->
+    <section class="bg-white p-5 rounded-xl shadow-md border border-slate-200 mb-6 no-print">
+      <div class="flex items-center justify-between border-b pb-3 mb-4">
+        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-600"></i> Filter Data & Pusat Unduh
+        </h2>
+        <span id="dataStatusBadge" class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+          Ready
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Search Field -->
         <div>
           <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer</label>
           <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
-            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik nama customer / daerah..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Nama customer / daerah..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
 
@@ -51,25 +102,52 @@
           </select>
         </div>
 
-        <!-- Filter Daerah -->
+        <!-- Date Range: From -->
         <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Dari Tanggal</label>
+          <input type="date" id="startDateInput" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700" />
+        </div>
+
+        <!-- Date Range: To -->
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sampai Tanggal</label>
+          <input type="date" id="endDateInput" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700" />
+        </div>
+      </div>
+
+      <!-- SECONDARY FILTER & ACTION BAR -->
+      <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <!-- Extra Filter: Daerah -->
+        <div class="w-full md:w-1/3">
           <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Daerah</label>
           <select id="daerahFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="ALL">Semua Daerah</option>
           </select>
         </div>
 
-        <!-- Reset Button -->
-        <div class="flex items-end">
-          <button onclick="resetFilters()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium transition">
-            <i class="fa-solid fa-filter-circle-xmark mr-1"></i> Reset Filter
+        <!-- Download & Reset Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <button onclick="resetFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1">
+            <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+          </button>
+          
+          <div class="h-6 w-px bg-slate-300 hidden md:block"></div>
+
+          <!-- Download Excel Button -->
+          <button onclick="exportData('excel')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3.5 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-file-excel"></i> Unduh Excel
+          </button>
+
+          <!-- Download CSV Button -->
+          <button onclick="exportData('csv')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3.5 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-file-csv"></i> Unduh CSV
           </button>
         </div>
       </div>
     </section>
 
-    <!-- SLIDE NAVIGATOR PER TANGGAL (Hanya aktif jika tidak sedang mencari) -->
-    <section id="dateNavigator" class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+    <!-- DATE NAVIGATOR BAR (Only visible when NOT searching) -->
+    <section id="dateNavigator" class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
       <div class="flex items-center space-x-2">
         <button onclick="slideDate(-1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 px-3 py-2 rounded-lg shadow-sm transition text-sm font-semibold">
           <i class="fa-solid fa-chevron-left mr-1"></i> Tanggal Sebelumnya
@@ -79,17 +157,37 @@
         </button>
       </div>
 
-      <!-- Indicator Tanggal Aktif -->
+      <!-- Current Date Indicator -->
       <div class="text-center">
-        <span class="text-xs uppercase font-bold text-indigo-500 tracking-wider block">Menampilkan Tanggal</span>
+        <span class="text-xs uppercase font-bold text-indigo-500 tracking-wider block">Menampilkan Tanggal Active</span>
         <span id="currentDateDisplay" class="text-xl font-extrabold text-indigo-900">Memuat Data...</span>
       </div>
 
-      <!-- Direct Date Picker -->
+      <!-- Direct Date Selection Dropdown -->
       <div class="flex items-center gap-2">
         <span class="text-xs font-bold text-slate-600">Pilih Tanggal:</span>
         <select id="dateSelect" onchange="onDateSelectChange(this.value)" class="py-1.5 px-3 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900 focus:outline-none">
         </select>
+      </div>
+    </section>
+
+    <!-- SUMMARY METRICS CARDS -->
+    <section id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Pengiriman</span>
+        <span id="metricTotalRows" class="text-2xl font-black text-slate-800">0</span>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Dokumen</span>
+        <span id="metricTotalDocs" class="text-2xl font-black text-indigo-600">0</span>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Berat</span>
+        <span id="metricTotalWeight" class="text-2xl font-black text-amber-600">0 gr</span>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Total Cost</span>
+        <span id="metricTotalCost" class="text-2xl font-black text-emerald-600">Rp 0</span>
       </div>
     </section>
 
@@ -98,17 +196,31 @@
 
   </main>
 
+  <!-- FOOTER -->
+  <footer class="bg-slate-800 text-slate-400 py-6 text-center text-xs no-print">
+    <p>&copy; Logistics Armada Management System - Dashboard Sync & Multi-Filter Export</p>
+  </footer>
+
+  <!-- JAVASCRIPT LOGIC -->
   <script>
+    // URL CSV Google Sheets Published
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
 
     let rawData = [];
+    let filteredData = [];
     let datesList = [];
     let currentDateIndex = 0;
 
     window.addEventListener('DOMContentLoaded', fetchSheetData);
 
+    // Fetch and parse data from Google Sheets
     function fetchSheetData() {
       const container = document.getElementById('armadaContainer');
+      const badge = document.getElementById('dataStatusBadge');
+      
+      badge.className = "bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-semibold";
+      badge.innerText = "Syncing...";
+
       container.innerHTML = `
         <div class="text-center py-12">
           <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
@@ -122,6 +234,8 @@
         complete: function(results) {
           if (results.data && results.data.length > 0) {
             processRawData(results.data);
+            badge.className = "bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold";
+            badge.innerText = "Ready";
           } else {
             showError();
           }
@@ -133,6 +247,10 @@
     }
 
     function showError() {
+      const badge = document.getElementById('dataStatusBadge');
+      badge.className = "bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded-full font-semibold";
+      badge.innerText = "Error";
+
       document.getElementById('armadaContainer').innerHTML = `
         <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
           <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
@@ -141,17 +259,25 @@
         </div>`;
     }
 
+    // Process parsed CSV into usable JSON objects
     function processRawData(data) {
-      rawData = data.map(item => ({
-        Tanggal: (item['Tanggal'] || '').trim(),
-        Customer: (item['Customer'] || '').trim(),
-        Armada: (item['Armada'] || 'Lainnya').trim(),
-        Daerah: (item['Daerah'] || '-').trim(),
-        TotalDokumen: (item['Total Dokumen'] || '0').trim(),
-        TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
-        Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0
-      })).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
+      rawData = data.map(item => {
+        const rawDate = (item['Tanggal'] || '').trim();
+        const parsedISO = parseToISODate(rawDate);
 
+        return {
+          Tanggal: rawDate,
+          ISODate: parsedISO,
+          Customer: (item['Customer'] || '').trim(),
+          Armada: (item['Armada'] || 'Lainnya').trim(),
+          Daerah: (item['Daerah'] || '-').trim(),
+          TotalDokumen: parseInt(item['Total Dokumen'] || '0') || 0,
+          TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0
+        };
+      }).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
+
+      // Sort dates chronologically if possible
       datesList = [...new Set(rawData.map(item => item.Tanggal))];
       populateFilters();
 
@@ -166,6 +292,24 @@
       }
     }
 
+    // Helper: Convert DD/MM/YYYY or similar strings into ISO YYYY-MM-DD for standard date filtering
+    function parseToISODate(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split(/[\/\-.]/);
+      if (parts.length === 3) {
+        // Assume DD/MM/YYYY
+        if (parts[2].length === 4) {
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        // Assume YYYY/MM/DD
+        if (parts[0].length === 4) {
+          return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        }
+      }
+      return dateStr;
+    }
+
+    // Populate Dropdowns for Filters
     function populateFilters() {
       const armadas = [...new Set(rawData.map(i => i.Armada))].filter(Boolean);
       const daerahs = [...new Set(rawData.map(i => i.Daerah))].filter(Boolean);
@@ -185,36 +329,59 @@
       });
     }
 
+    // Render Dashboard Table Cards and Metrics
     function renderDashboard() {
       const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
       const armadaFilter = document.getElementById('armadaFilter').value;
       const daerahFilter = document.getElementById('daerahFilter').value;
+      const startDate = document.getElementById('startDateInput').value;
+      const endDate = document.getElementById('endDateInput').value;
       const dateNav = document.getElementById('dateNavigator');
 
-      let filtered = [];
+      let filtered = [...rawData];
 
-      // JIKA USER MENGETIK PADA INPUT SEARCH CUSTOMER
-      if (searchTerm.length > 0) {
-        // Sembunyikan Navigasi Tanggal agar tidak membingungkan
+      const isRangeActive = startDate !== '' || endDate !== '';
+      const isSearchActive = searchTerm.length > 0;
+
+      // Date Filtering Logic
+      if (isSearchActive || isRangeActive) {
         dateNav.classList.add('hidden');
-        
-        // Ambil data DARI SEMUA TANGGAL
-        filtered = rawData.filter(i => 
-          i.Customer.toLowerCase().includes(searchTerm) || 
-          i.Daerah.toLowerCase().includes(searchTerm)
-        );
+
+        // Apply Date Range Filter if set
+        if (startDate) {
+          filtered = filtered.filter(i => i.ISODate >= startDate);
+        }
+        if (endDate) {
+          filtered = filtered.filter(i => i.ISODate <= endDate);
+        }
+
+        // Apply Search Term Filter
+        if (isSearchActive) {
+          filtered = filtered.filter(i => 
+            i.Customer.toLowerCase().includes(searchTerm) || 
+            i.Daerah.toLowerCase().includes(searchTerm) ||
+            i.Armada.toLowerCase().includes(searchTerm)
+          );
+        }
       } else {
-        // Tampilkan Navigasi Tanggal
+        // Single Date Mode (Active Date Slide)
         dateNav.classList.remove('hidden');
         const selectedDate = datesList[currentDateIndex];
         document.getElementById('currentDateDisplay').innerText = selectedDate || '-';
         document.getElementById('dateSelect').value = currentDateIndex;
 
-        filtered = rawData.filter(item => item.Tanggal === selectedDate);
+        filtered = filtered.filter(item => item.Tanggal === selectedDate);
       }
 
+      // Apply Armada & Daerah Dropdown Filters
       if (armadaFilter !== 'ALL') filtered = filtered.filter(i => i.Armada === armadaFilter);
       if (daerahFilter !== 'ALL') filtered = filtered.filter(i => i.Daerah === daerahFilter);
+
+      // Save global filtered reference for downloads
+      filteredData = filtered;
+
+      // Update Summary Cards
+      updateMetrics(filtered);
 
       const container = document.getElementById('armadaContainer');
       container.innerHTML = '';
@@ -223,41 +390,48 @@
         container.innerHTML = `
           <div class="bg-white p-8 rounded-xl shadow text-center text-slate-500">
             <i class="fa-solid fa-box-open text-3xl mb-2 text-slate-300"></i>
-            <p>Tidak ada riwayat pengiriman yang cocok dengan pencarian Anda.</p>
+            <p>Tidak ada riwayat pengiriman yang cocok dengan filter / pencarian Anda.</p>
           </div>`;
         return;
       }
 
-      // Grouping data berdasarkan Armada
+      // Banner Notification if in Global Search/Range Mode
+      if (isSearchActive || isRangeActive) {
+        let filterDetails = [];
+        if (isSearchActive) filterDetails.push(`Kata Kunci: "${document.getElementById('searchInput').value}"`);
+        if (startDate) filterDetails.push(`Dari: ${startDate}`);
+        if (endDate) filterDetails.push(`Sampai: ${endDate}`);
+
+        container.innerHTML += `
+          <div class="bg-indigo-900 text-white p-4 rounded-xl shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-4 no-print">
+            <div>
+              <span class="text-xs text-indigo-300 uppercase font-bold tracking-wider">Modus Filter Aktif:</span>
+              <h2 class="text-sm md:text-base font-bold text-amber-400">${filterDetails.join(' | ')}</h2>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-indigo-200">Total Transaksi Ditemukan:</span>
+              <p class="text-lg font-bold">${filtered.length} Data</p>
+            </div>
+          </div>`;
+      }
+
+      // Grouping data by Armada
       const grouped = {};
       filtered.forEach(item => {
         if (!grouped[item.Armada]) grouped[item.Armada] = [];
         grouped[item.Armada].push(item);
       });
 
-      // Tampilkan banner khusus jika sedang dalam mode Pencarian Customer
-      if (searchTerm.length > 0) {
-        container.innerHTML += `
-          <div class="bg-indigo-900 text-white p-4 rounded-xl shadow flex justify-between items-center mb-4">
-            <div>
-              <span class="text-xs text-indigo-300 uppercase font-bold tracking-wider">Hasil Pencarian Customer/Rute:</span>
-              <h2 class="text-xl font-extrabold text-amber-400">"${document.getElementById('searchInput').value}"</h2>
-            </div>
-            <div class="text-right">
-              <span class="text-xs text-indigo-200">Total Pengiriman Ditemukan:</span>
-              <p class="text-lg font-bold">${filtered.length} Transaksi</p>
-            </div>
-          </div>`;
-      }
-
       Object.keys(grouped).forEach(armadaName => {
         const items = grouped[armadaName];
         let totalBeratArmada = 0;
         let totalCostArmada = 0;
+        let totalDocsArmada = 0;
 
         items.forEach(i => {
           totalBeratArmada += i.TotalBerat;
           totalCostArmada += i.Cost;
+          totalDocsArmada += i.TotalDokumen;
         });
 
         let rowsHtml = '';
@@ -277,7 +451,7 @@
         });
 
         const cardHtml = `
-          <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden mb-6">
+          <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden mb-6 card-box">
             <div class="bg-slate-800 text-white px-6 py-3 flex justify-between items-center">
               <div class="flex items-center space-x-3">
                 <span class="bg-indigo-500 text-white px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">
@@ -309,7 +483,7 @@
                 <tfoot>
                   <tr class="bg-slate-50 font-bold border-t text-sm">
                     <td colspan="4" class="py-3 px-4 text-slate-700 text-right">Total ${armadaName}:</td>
-                    <td class="py-3 px-4 text-center">${items.reduce((a,b)=>a+parseInt(b.TotalDokumen||0), 0)}</td>
+                    <td class="py-3 px-4 text-center">${totalDocsArmada}</td>
                     <td class="py-3 px-4 text-right">${totalBeratArmada.toLocaleString('id-ID')} gr</td>
                     <td class="py-3 px-4 text-right text-emerald-700">Rp ${totalCostArmada.toLocaleString('id-ID')}</td>
                   </tr>
@@ -322,6 +496,22 @@
       });
     }
 
+    // Update Top Overview Metrics
+    function updateMetrics(items) {
+      let docs = 0, weight = 0, cost = 0;
+      items.forEach(i => {
+        docs += i.TotalDokumen;
+        weight += i.TotalBerat;
+        cost += i.Cost;
+      });
+
+      document.getElementById('metricTotalRows').innerText = items.length;
+      document.getElementById('metricTotalDocs').innerText = docs.toLocaleString('id-ID');
+      document.getElementById('metricTotalWeight').innerText = `${weight.toLocaleString('id-ID')} gr`;
+      document.getElementById('metricTotalCost').innerText = `Rp ${cost.toLocaleString('id-ID')}`;
+    }
+
+    // Slide Navigation Logic
     function slideDate(direction) {
       if (datesList.length === 0) return;
       currentDateIndex += direction;
@@ -343,7 +533,55 @@
       document.getElementById('searchInput').value = '';
       document.getElementById('armadaFilter').value = 'ALL';
       document.getElementById('daerahFilter').value = 'ALL';
+      document.getElementById('startDateInput').value = '';
+      document.getElementById('endDateInput').value = '';
       renderDashboard();
+    }
+
+    // EXPORT DATA (CSV or EXCEL)
+    function exportData(format) {
+      if (!filteredData || filteredData.length === 0) {
+        alert("Tidak ada data yang tersedia untuk diunduh!");
+        return;
+      }
+
+      // Format dataset for download
+      const exportRows = filteredData.map((item, index) => ({
+        "No": index + 1,
+        "Tanggal": item.Tanggal,
+        "Customer": item.Customer,
+        "Armada": item.Armada,
+        "Daerah": item.Daerah,
+        "Total Dokumen": item.TotalDokumen,
+        "Total Berat (gr)": item.TotalBerat,
+        "Cost (Rp)": item.Cost
+      }));
+
+      const filename = `Laporan_Logistics_Armada_${new Date().toISOString().slice(0,10)}`;
+
+      if (format === 'csv') {
+        const csvContent = Papa.unparse(exportRows);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${filename}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === 'excel') {
+        const worksheet = XLSX.utils.json_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data Logistics");
+        XLSX.writeFile(workbook, `${filename}.xlsx`);
+      }
+    }
+
+    // PRINT REPORT VIEW
+    function triggerPrint() {
+      const now = new Date();
+      document.getElementById('printReportSubtitle').innerText = `Tanggal Cetak: ${now.toLocaleDateString('id-ID')} ${now.toLocaleTimeString('id-ID')}`;
+      window.print();
     }
   </script>
 </body>
