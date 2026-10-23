@@ -61,7 +61,7 @@
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Daftar Jadwal Kirim & Matriks Armada Harian</p>
+          <p class="text-xs text-slate-500">Daftar Jadwal Kirim & Matriks Armada Harian (Perhitungan Dokumen Dinamis)</p>
         </div>
 
         <!-- Filter Bulan & Tahun -->
@@ -95,7 +95,7 @@
         </div>
       </div>
 
-      <!-- Container Kalender Mingguan (Week 1 s/d Week 5) -->
+      <!-- Container Kalender Mingguan -->
       <div id="calendarMatrixContainer" class="space-y-6"></div>
 
     </section>
@@ -113,11 +113,10 @@
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
-            <!-- LABEL PENCARIAN DIPERBARUI -->
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer / No Dokumen</label>
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
-              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah, No Dokumen (SL...), atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah, No Dokumen, atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
 
@@ -423,28 +422,41 @@
       });
     }
 
-    // MEMETAKAN NO DOKUMEN KE DALAM RAW DATA AGAR BISA DICARI VIA KOTAK SEARCH
+    // HITUNG DINAMIS JUMLAH DOKUMEN & SINKRONISASI NO DOKUMEN PER ARMADA
     function mapOrderDocsToRawData() {
       if (!rawData || rawData.length === 0 || !orderDetailsData || orderDetailsData.length === 0) return;
 
       rawData.forEach(row => {
         const cleanCust = row.Customer.toLowerCase().trim();
         const normTargetDate = row.Tanggal;
+        const cleanArmada = row.Armada.toLowerCase().trim();
 
-        const matchedDocs = orderDetailsData.filter(item => {
+        const matchedItems = orderDetailsData.filter(item => {
           const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
           const dateMatch = (item.TanggalKirim === normTargetDate);
-          return custMatch && dateMatch;
+          
+          let armadaMatch = true;
+          if (cleanArmada !== '' && item.Armada !== '-') {
+            armadaMatch = item.Armada.toLowerCase().includes(cleanArmada) || cleanArmada.includes(item.Armada.toLowerCase());
+          }
+
+          return custMatch && dateMatch && armadaMatch;
         });
 
-        const docNums = matchedDocs.map(d => d.TransactionNumber).filter(Boolean);
-        const poNums = matchedDocs.map(d => d.NoPO).filter(Boolean);
+        const docNums = matchedItems.map(d => d.TransactionNumber).filter(Boolean);
+        const poNums = matchedItems.map(d => d.NoPO).filter(Boolean);
         
         row.NoDokumenList = [...new Set(docNums)];
         row.NoPOList = [...new Set(poNums)];
+
+        // UPDATE JUMLAH DOKUMEN DINAMIS BERDASARKAN FILTER DETAIL ORDER
+        if (row.NoDokumenList.length > 0) {
+          row.TotalDokumen = row.NoDokumenList.length;
+        }
       });
 
       renderDashboard();
+      renderCalendarDashboard();
     }
 
     function showError() {
@@ -751,9 +763,6 @@
       });
     }
 
-    // =========================================================================
-    // MODUL: GET FILTERED DATA (MENDUKUNG SEARCH NO DOKUMEN & NO PO)
-    // =========================================================================
     function getFilteredData() {
       const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
       const armadaFilter = document.getElementById('armadaFilter').value;
@@ -775,16 +784,11 @@
           filtered = filtered.filter(i => i.ISODate && i.ISODate <= endDate);
         }
         
-        // PENCARIAN CUSTOMER, DAERAH, DOKUMEN, & NO PO
         if (searchTerm.length > 0) {
           filtered = filtered.filter(i => {
             const matchCust = i.Customer.toLowerCase().includes(searchTerm);
             const matchDaerah = i.Daerah.toLowerCase().includes(searchTerm);
-            
-            // Cek Nomor Dokumen di List
             const matchDoc = i.NoDokumenList && i.NoDokumenList.some(doc => doc.toLowerCase().includes(searchTerm));
-            
-            // Cek Nomor PO di List
             const matchPO = i.NoPOList && i.NoPOList.some(po => po.toLowerCase().includes(searchTerm));
 
             return matchCust || matchDaerah || matchDoc || matchPO;
@@ -961,7 +965,7 @@
           const dateMatch = (item.TanggalKirim === normTargetDate);
 
           let armadaMatch = true;
-          if (cleanArmada !== '') {
+          if (cleanArmada !== '' && item.Armada !== '-') {
             armadaMatch = item.Armada.toLowerCase().includes(cleanArmada) || cleanArmada.includes(item.Armada.toLowerCase());
           }
 
