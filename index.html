@@ -52,7 +52,7 @@
 
   <main class="max-w-7xl mx-auto px-4 mt-6">
 
-    <!-- TAB 1: DASHBOARD JADWAL KIRIM -->
+    <!-- TAB 1: DASHBOARD JADWAL KIRIM (TAMPILAN MINGGUAN LAYAR LEBAR SCROLLABLE) -->
     <section id="viewDashboard" class="space-y-6">
       
       <!-- Control Bar Dashboard Kalender -->
@@ -61,7 +61,7 @@
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Tampilan Week 1 - 5 per Hari (Senin - Minggu) dan Kelompok Dropdown List Armada</p>
+          <p class="text-xs text-slate-500">Tampilan Week 1 - 5 per Hari (Dapat digeser ke kanan/kiri) dengan Dropdown List Tabel Armada</p>
         </div>
 
         <!-- Filter Bulan & Tahun -->
@@ -520,7 +520,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER DENGAN DROPDOWN LIST TABEL RINGKAS
+    // MODUL: RENDERING DASHBOARD KALENDER DENGAN TABEL LIST (CUSTOMER, NO DOKUMEN, COST)
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -598,42 +598,57 @@
                   const safeCust = row.Customer.replace(/'/g, "\\'");
                   const safeTgl = row.Tanggal.replace(/'/g, "\\'");
                   
-                  // Tampilan Baris List Ringkas
+                  // Format Baris Tabel: CUSTOMER | NO DOKUMEN | COST
                   customerListRows += `
-                    <div onclick="openDocumentModal('${safeCust}', '${safeTgl}')" 
-                         class="flex items-center justify-between py-1.5 px-2 hover:bg-indigo-100/70 rounded-lg transition cursor-pointer border-b border-slate-100 last:border-none text-xs group">
-                      <div class="min-w-0 pr-1 flex-1">
-                        <p class="font-bold text-indigo-950 group-hover:text-indigo-700 truncate text-[11px]">${row.Customer}</p>
-                        <p class="text-[10px] text-slate-500 truncate">${row.Daerah}</p>
-                      </div>
-                      <div class="text-right flex-shrink-0 space-y-0.5">
-                        <span class="inline-block bg-indigo-600 group-hover:bg-amber-500 group-hover:text-slate-900 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full font-mono">
+                    <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}')" 
+                        class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100 group">
+                      <td class="py-1.5 px-2 font-semibold text-indigo-950 group-hover:text-indigo-700 truncate max-w-[120px]" title="${row.Customer}">
+                        ${row.Customer}
+                        <span class="block text-[9px] font-normal text-slate-400">${row.Daerah}</span>
+                      </td>
+                      <td class="py-1.5 px-1 text-center font-mono font-bold text-slate-700 group-hover:text-amber-600">
+                        <span class="bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded group-hover:bg-amber-400 group-hover:text-slate-900 group-hover:border-amber-400 transition">
                           ${row.TotalDokumen} Dok
                         </span>
-                        <p class="text-[9px] font-semibold text-slate-600">${row.TotalBerat.toLocaleString('id-ID')} gr</p>
-                      </div>
-                    </div>`;
+                      </td>
+                      <td class="py-1.5 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">
+                        ${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}
+                      </td>
+                    </tr>`;
                 });
 
                 armadaListHtml += `
-                  <details class="group bg-white border border-indigo-200 rounded-xl overflow-hidden shadow-sm transition-all" open>
-                    <summary class="bg-indigo-50/90 hover:bg-indigo-100 px-2.5 py-1.5 cursor-pointer font-extrabold text-indigo-950 text-xs flex justify-between items-center select-none">
-                      <div class="flex items-center gap-1.5 truncate">
+                  <details class="group bg-white border border-indigo-200 rounded-xl overflow-hidden shadow-sm transition-all mb-2" open>
+                    <summary class="bg-indigo-50/90 hover:bg-indigo-100 px-3 py-2 cursor-pointer font-extrabold text-indigo-950 text-xs flex justify-between items-center select-none">
+                      <div class="flex items-center gap-1.5">
                         <i class="fa-solid fa-chevron-right group-open:rotate-90 transition-transform duration-200 text-[10px] text-indigo-600"></i>
                         <i class="fa-solid fa-truck text-indigo-600 text-xs"></i>
                         <span class="tracking-wide">${armName}</span>
                         <span class="bg-indigo-600 text-white text-[9px] px-1.5 py-0.2 rounded-full font-mono">${list.length}</span>
                       </div>
-                      <span class="text-[10px] font-semibold text-slate-500 pl-1 flex-shrink-0">${totalBeratArmada.toLocaleString('id-ID')} gr</span>
+                      <span class="text-[10px] font-bold text-slate-500">${totalBeratArmada.toLocaleString('id-ID')} gr</span>
                     </summary>
-                    <div class="p-1 bg-white space-y-0.5 border-t border-indigo-100">
-                      ${customerListRows}
+
+                    <!-- TABEL LIST CUSTOMER, DOKUMEN, COST -->
+                    <div class="p-1 bg-white overflow-x-auto border-t border-indigo-100">
+                      <table class="w-full text-left text-[11px] border-collapse">
+                        <thead>
+                          <tr class="bg-slate-100 text-slate-500 text-[9px] uppercase tracking-wider border-b">
+                            <th class="py-1 px-2">Customer</th>
+                            <th class="py-1 px-1 text-center">Dokumen</th>
+                            <th class="py-1 px-2 text-right">Cost</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${customerListRows}
+                        </tbody>
+                      </table>
                     </div>
                   </details>`;
               } else {
                 armadaListHtml += `
-                  <details class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-60">
-                    <summary class="bg-slate-50 px-2.5 py-1.5 cursor-pointer font-semibold text-slate-500 text-xs flex justify-between items-center select-none">
+                  <details class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-60 mb-2">
+                    <summary class="bg-slate-50 px-3 py-1.5 cursor-pointer font-semibold text-slate-500 text-xs flex justify-between items-center select-none">
                       <div class="flex items-center gap-1.5">
                         <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
                         <i class="fa-solid fa-truck text-slate-400 text-xs"></i>
@@ -646,18 +661,18 @@
             });
 
             dayColsHtml += `
-              <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
-                <div class="bg-indigo-950 text-white p-2 text-center flex justify-between items-center">
+              <div class="min-w-[280px] bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
+                <div class="bg-indigo-950 text-white p-2.5 text-center flex justify-between items-center">
                   <span class="text-xs font-black text-amber-400 tracking-wider">${dayNamesHeader[dayIndex - 1]}</span>
-                  <span class="text-[11px] bg-indigo-800 text-indigo-200 px-2 py-0.5 rounded-full font-mono font-bold">${dateStrFormatted}</span>
+                  <span class="text-[11px] bg-indigo-800 text-indigo-200 px-2.5 py-0.5 rounded-full font-mono font-bold">${dateStrFormatted}</span>
                 </div>
-                <div class="p-1.5 space-y-1.5 flex-1 max-h-[380px] overflow-y-auto">
+                <div class="p-2 space-y-1 flex-1 max-h-[420px] overflow-y-auto">
                   ${armadaListHtml}
                 </div>
               </div>`;
           } else {
             dayColsHtml += `
-              <div class="bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-3 text-center flex items-center justify-center min-h-[140px]">
+              <div class="min-w-[280px] bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-3 text-center flex items-center justify-center min-h-[160px]">
                 <span class="text-xs font-bold text-slate-300 uppercase">${dayNamesHeader[dayIndex - 1]}</span>
               </div>`;
           }
@@ -669,9 +684,11 @@
               <span class="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-amber-400"></i> Week ${weekNum}
               </span>
-              <span class="text-xs text-indigo-200">Matriks List Customer per Armada</span>
+              <span class="text-xs text-indigo-200">Geser ke kanan/kiri untuk melihat seluruh hari</span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-7 gap-3">
+
+            <!-- SCROLLABLE HORIZONTAL GRID -->
+            <div class="flex gap-3 overflow-x-auto pb-2">
               ${dayColsHtml}
             </div>
           </div>`;
