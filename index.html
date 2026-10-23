@@ -61,7 +61,7 @@
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Pencocokan Dokumen Presisi (Sesuai Customer, Tanggal Kirim, dan Armada)</p>
+          <p class="text-xs text-slate-500">Daftar Jadwal Kirim & Matriks Armada Harian</p>
         </div>
 
         <!-- Filter Bulan & Tahun -->
@@ -113,10 +113,11 @@
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer</label>
+            <!-- LABEL PENCARIAN DIPERBARUI -->
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer / No Dokumen</label>
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
-              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Nama customer / daerah..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah, No Dokumen (SL...), atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
 
@@ -386,6 +387,7 @@
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
             processOrderDetailsJSON(data);
+            mapOrderDocsToRawData();
             const timeStamp = getFormattedTimestamp();
             badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
           } else {
@@ -408,6 +410,7 @@
         complete: function(results) {
           if (results.data && results.data.length > 0) {
             processOrderDetailsData(results.data);
+            mapOrderDocsToRawData();
             const timeStamp = getFormattedTimestamp();
             badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
           } else {
@@ -418,6 +421,30 @@
           badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Order Sheet Error`;
         }
       });
+    }
+
+    // MEMETAKAN NO DOKUMEN KE DALAM RAW DATA AGAR BISA DICARI VIA KOTAK SEARCH
+    function mapOrderDocsToRawData() {
+      if (!rawData || rawData.length === 0 || !orderDetailsData || orderDetailsData.length === 0) return;
+
+      rawData.forEach(row => {
+        const cleanCust = row.Customer.toLowerCase().trim();
+        const normTargetDate = row.Tanggal;
+
+        const matchedDocs = orderDetailsData.filter(item => {
+          const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
+          const dateMatch = (item.TanggalKirim === normTargetDate);
+          return custMatch && dateMatch;
+        });
+
+        const docNums = matchedDocs.map(d => d.TransactionNumber).filter(Boolean);
+        const poNums = matchedDocs.map(d => d.NoPO).filter(Boolean);
+        
+        row.NoDokumenList = [...new Set(docNums)];
+        row.NoPOList = [...new Set(poNums)];
+      });
+
+      renderDashboard();
     }
 
     function showError() {
@@ -465,7 +492,9 @@
           TotalDokumen: parseInt((item['Total Dokumen'] || '0').replace(/[^0-9]/g, '')) || 0,
           TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
           Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
-          Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0
+          Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
+          NoDokumenList: [],
+          NoPOList: []
         };
       }).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
 
@@ -722,6 +751,9 @@
       });
     }
 
+    // =========================================================================
+    // MODUL: GET FILTERED DATA (MENDUKUNG SEARCH NO DOKUMEN & NO PO)
+    // =========================================================================
     function getFilteredData() {
       const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
       const armadaFilter = document.getElementById('armadaFilter').value;
@@ -742,11 +774,21 @@
         if (endDate) {
           filtered = filtered.filter(i => i.ISODate && i.ISODate <= endDate);
         }
+        
+        // PENCARIAN CUSTOMER, DAERAH, DOKUMEN, & NO PO
         if (searchTerm.length > 0) {
-          filtered = filtered.filter(i => 
-            i.Customer.toLowerCase().includes(searchTerm) || 
-            i.Daerah.toLowerCase().includes(searchTerm)
-          );
+          filtered = filtered.filter(i => {
+            const matchCust = i.Customer.toLowerCase().includes(searchTerm);
+            const matchDaerah = i.Daerah.toLowerCase().includes(searchTerm);
+            
+            // Cek Nomor Dokumen di List
+            const matchDoc = i.NoDokumenList && i.NoDokumenList.some(doc => doc.toLowerCase().includes(searchTerm));
+            
+            // Cek Nomor PO di List
+            const matchPO = i.NoPOList && i.NoPOList.some(po => po.toLowerCase().includes(searchTerm));
+
+            return matchCust || matchDaerah || matchDoc || matchPO;
+          });
         }
       } else {
         dateNav.classList.remove('hidden');
@@ -790,7 +832,7 @@
         container.innerHTML = `
           <div class="bg-white p-8 rounded-xl shadow text-center text-slate-500">
             <i class="fa-solid fa-box-open text-3xl mb-2 text-slate-300"></i>
-            <p>Tidak ada data pengiriman yang cocok dengan kriteria filter Anda.</p>
+            <p>Tidak ada data pengiriman atau nomor dokumen yang cocok dengan kriteria filter Anda.</p>
           </div>`;
         return;
       }
@@ -888,7 +930,7 @@
     }
 
     // =========================================================================
-    // MODUL: OPEN DOCUMENT MODAL (MENDUKUNG FILTER CUSTOMER + TANGGAL + ARMADA)
+    // MODUL: OPEN DOCUMENT MODAL
     // =========================================================================
     function openDocumentModal(customerName, tanggal, armadaName = '') {
       const modal = document.getElementById('documentModal');
@@ -914,7 +956,6 @@
         const normTargetDate = normalizeDateString(tanggal);
         const cleanArmada = (armadaName || '').toLowerCase().trim();
 
-        // FILTER PRESISI: Memastikan Customer, Tanggal, dan Armada Cocok Sempurna
         let matches = orderDetailsData.filter(item => {
           const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
           const dateMatch = (item.TanggalKirim === normTargetDate);
