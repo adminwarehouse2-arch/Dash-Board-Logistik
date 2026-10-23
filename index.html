@@ -61,7 +61,7 @@
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Tampilan Diurutkan Berdasarkan Daerah (A-Z)</p>
+          <p class="text-xs text-slate-500">Pencocokan Dokumen Presisi (Sesuai Customer, Tanggal Kirim, dan Armada)</p>
         </div>
 
         <!-- Filter Bulan & Tahun -->
@@ -520,7 +520,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER (DENGAN SORTING DAERAH A-Z)
+    // MODUL: RENDERING DASHBOARD KALENDER
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -593,16 +593,17 @@
               const totalBeratArmada = list.reduce((sum, item) => sum + item.TotalBerat, 0);
 
               if (list.length > 0) {
-                // PROSES SORTING BERDASARKAN DAERAH (A-Z)
+                // SORTING BERDASARKAN DAERAH (A-Z)
                 list.sort((a, b) => a.Daerah.localeCompare(b.Daerah, 'id', { sensitivity: 'base' }));
 
                 let customerListRows = '';
                 list.forEach(row => {
                   const safeCust = row.Customer.replace(/'/g, "\\'");
                   const safeTgl = row.Tanggal.replace(/'/g, "\\'");
+                  const safeArmada = row.Armada.replace(/'/g, "\\'");
                   
                   customerListRows += `
-                    <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}')" 
+                    <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" 
                         class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100 group">
                       <td class="py-2 px-2 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight">
                         ${row.Customer}
@@ -815,6 +816,7 @@
         items.forEach((item, index) => {
           const safeCustomer = item.Customer.replace(/'/g, "\\'");
           const safeTanggal = item.Tanggal.replace(/'/g, "\\'");
+          const safeArmada = item.Armada.replace(/'/g, "\\'");
 
           rowsHtml += `
             <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-sm">
@@ -823,7 +825,7 @@
               <td class="py-3 px-4 font-semibold text-indigo-600">${item.Tanggal}</td>
               <td class="py-3 px-4 text-slate-600">${item.Daerah}</td>
               <td class="py-3 px-4 text-center">
-                <button onclick="openDocumentModal('${safeCustomer}', '${safeTanggal}')" 
+                <button onclick="openDocumentModal('${safeCustomer}', '${safeTanggal}', '${safeArmada}')" 
                         class="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-extrabold px-3 py-1 rounded-lg transition border border-indigo-200 hover:border-indigo-600 shadow-sm cursor-pointer">
                   <span>${item.TotalDokumen}</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
@@ -885,7 +887,10 @@
       });
     }
 
-    function openDocumentModal(customerName, tanggal) {
+    // =========================================================================
+    // MODUL: OPEN DOCUMENT MODAL (MENDUKUNG FILTER CUSTOMER + TANGGAL + ARMADA)
+    // =========================================================================
+    function openDocumentModal(customerName, tanggal, armadaName = '') {
       const modal = document.getElementById('documentModal');
       const modalCustomer = document.getElementById('modalCustomerName');
       const modalSubTitle = document.getElementById('modalSubTitle');
@@ -898,7 +903,7 @@
       const totalOutstandingBadge = document.getElementById('modalTotalOutstandingBadge');
 
       modalCustomer.innerText = customerName;
-      modalSubTitle.innerText = `Tanggal Kirim: ${tanggal}`;
+      modalSubTitle.innerText = `Tanggal Kirim: ${tanggal} ${armadaName ? '| Armada: ' + armadaName : ''}`;
       
       modal.classList.remove('hidden');
       modalLoading.classList.remove('hidden');
@@ -907,15 +912,27 @@
       setTimeout(() => {
         const cleanCust = customerName.toLowerCase().trim();
         const normTargetDate = normalizeDateString(tanggal);
+        const cleanArmada = (armadaName || '').toLowerCase().trim();
 
+        // FILTER PRESISI: Memastikan Customer, Tanggal, dan Armada Cocok Sempurna
         let matches = orderDetailsData.filter(item => {
           const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
-          const dateMatch = item.TanggalKirim === normTargetDate || item.TanggalKirim === '';
-          return custMatch && dateMatch;
+          const dateMatch = (item.TanggalKirim === normTargetDate);
+
+          let armadaMatch = true;
+          if (cleanArmada !== '') {
+            armadaMatch = item.Armada.toLowerCase().includes(cleanArmada) || cleanArmada.includes(item.Armada.toLowerCase());
+          }
+
+          return custMatch && dateMatch && armadaMatch;
         });
 
-        if (matches.length === 0) {
-          matches = orderDetailsData.filter(item => item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase()));
+        if (matches.length === 0 && cleanArmada !== '') {
+          matches = orderDetailsData.filter(item => {
+            const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
+            const dateMatch = (item.TanggalKirim === normTargetDate);
+            return custMatch && dateMatch;
+          });
         }
 
         modalTableBody.innerHTML = '';
@@ -925,7 +942,7 @@
             <tr>
               <td colspan="10" class="py-8 text-center text-slate-400">
                 <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
-                Tidak ada detail barang/dokumen yang ditemukan untuk customer ini.
+                Tidak ada detail barang/dokumen yang sesuai dengan tanggal dan armada ini.
               </td>
             </tr>`;
           docCountBadge.innerText = "0";
@@ -945,22 +962,19 @@
 
           docKeys.forEach((docNum, docIdx) => {
             const items = groupedDocs[docNum];
-            let subtotalQty = 0, subtotalDelivered = 0, subtotalOutstanding = 0;
 
             items.forEach((item, itemIdx) => {
-              subtotalQty += item.Qty;
-              subtotalDelivered += item.DeliveredQty;
-              subtotalOutstanding += item.OutstandingQty;
-
               grandTotalQty += item.Qty;
               grandTotalDelivered += item.DeliveredQty;
               grandTotalOutstanding += item.OutstandingQty;
 
               let statusBadgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
               const statusUpper = item.Status.toUpperCase();
-              if (statusUpper.includes('DELIVERED') || statusUpper.includes('SELESAI') || statusUpper.includes('DONE')) {
+              if (statusUpper.includes('DELIVERED') || statusUpper.includes('TERKIRIM') || statusUpper.includes('SELESAI')) {
                 statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
-              } else if (statusUpper.includes('PENDING') || statusUpper.includes('PROSES')) {
+              } else if (statusUpper.includes('CLOSED') || statusUpper.includes('CANCEL')) {
+                statusBadgeClass = 'bg-slate-200 text-slate-800 border-slate-300';
+              } else if (statusUpper.includes('PENDING') || statusUpper.includes('BELUM')) {
                 statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
               }
 
