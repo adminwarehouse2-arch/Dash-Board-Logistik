@@ -61,7 +61,7 @@
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Daftar Jadwal Kirim & Matriks Armada Harian (Dengan Kolom Cost & Value)</p>
+          <p class="text-xs text-slate-500">Tampilan Diperlebar (Semua Kolom Terlihat Penuh)</p>
         </div>
 
         <!-- Filter Bulan & Tahun -->
@@ -559,7 +559,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER (DENGAN KOLOM VALUE BARANG)
+    // MODUL: RENDERING DASHBOARD KALENDER (DENGAN LEBAR LEBIH LUAS)
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -644,22 +644,21 @@
                   customerListRows += `
                     <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" 
                         class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100 group">
-                      <td class="py-2 px-2 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight">
+                      <td class="py-2 px-2.5 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight min-w-[140px]">
                         ${row.Customer}
                       </td>
-                      <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight">
+                      <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight min-w-[110px]">
                         ${row.Daerah}
                       </td>
-                      <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 group-hover:text-amber-600 whitespace-nowrap">
+                      <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 group-hover:text-amber-600 whitespace-nowrap min-w-[65px]">
                         <span class="bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded group-hover:bg-amber-400 group-hover:text-slate-900 group-hover:border-amber-400 transition">
                           ${row.TotalDokumen} Dok
                         </span>
                       </td>
-                      <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">
+                      <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap min-w-[85px]">
                         ${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}
                       </td>
-                      <!-- PENAMBAHAN KOLOM VALUE BARANG -->
-                      <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">
+                      <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap min-w-[90px]">
                         ${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}
                       </td>
                     </tr>`;
@@ -678,16 +677,17 @@
                     </summary>
 
                     <div class="p-1 bg-white overflow-x-auto border-t border-indigo-100">
-                      <table class="w-full text-left text-[11px] border-collapse min-w-[360px]">
+                      <!-- LEBAR MINIMAL TABEL DIPERLEBAR MENJADI 450px -->
+                      <table class="w-full text-left text-[11px] border-collapse min-w-[450px]">
                         <thead>
                           <tr class="bg-slate-100 text-slate-500 text-[9px] uppercase tracking-wider border-b">
-                            <th class="py-1 px-2">Customer</th>
-                            <th class="py-1 px-2 text-indigo-900 font-extrabold flex items-center gap-1">
+                            <th class="py-1.5 px-2.5">Customer</th>
+                            <th class="py-1.5 px-2 text-indigo-900 font-extrabold flex items-center gap-1">
                               Daerah <i class="fa-solid fa-arrow-down-a-z text-[10px]"></i>
                             </th>
-                            <th class="py-1 px-1 text-center">Dokumen</th>
-                            <th class="py-1 px-2 text-right">Cost</th>
-                            <th class="py-1 px-2 text-right text-purple-800">Value</th>
+                            <th class="py-1.5 px-1 text-center">Dokumen</th>
+                            <th class="py-1.5 px-2 text-right">Cost</th>
+                            <th class="py-1.5 px-2 text-right text-purple-800">Value</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -712,7 +712,8 @@
             });
 
             dayColsHtml += `
-              <div class="min-w-[380px] bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
+              <!-- LEBAR MINIMAL KOLOM HARI DIPERLEBAR MENJADI 480px -->
+              <div class="min-w-[480px] bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
                 <div class="bg-indigo-950 text-white p-2.5 text-center flex justify-between items-center">
                   <span class="text-xs font-black text-amber-400 tracking-wider">${dayNamesHeader[dayIndex - 1]}</span>
                   <span class="text-[11px] bg-indigo-800 text-indigo-200 px-2.5 py-0.5 rounded-full font-mono font-bold">${dateStrFormatted}</span>
@@ -723,7 +724,7 @@
               </div>`;
           } else {
             dayColsHtml += `
-              <div class="min-w-[380px] bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-3 text-center flex items-center justify-center min-h-[160px]">
+              <div class="min-w-[480px] bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-3 text-center flex items-center justify-center min-h-[160px]">
                 <span class="text-xs font-bold text-slate-300 uppercase">${dayNamesHeader[dayIndex - 1]}</span>
               </div>`;
           }
