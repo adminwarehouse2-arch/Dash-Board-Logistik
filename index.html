@@ -52,9 +52,7 @@
 
   <main class="max-w-7xl mx-auto px-4 mt-6">
 
-    <!-- ========================================================================= -->
-    <!-- TAB 1: DASHBOARD JADWAL KIRIM (VISUAL MINGGUAN WEEK 1-5 PER HARI/ARMADA)  -->
-    <!-- ========================================================================= -->
+    <!-- TAB 1: DASHBOARD JADWAL KIRIM -->
     <section id="viewDashboard" class="space-y-6">
       
       <!-- Control Bar Dashboard Kalender -->
@@ -63,7 +61,7 @@
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Tampilan Week 1 - 5 per Hari (Senin - Minggu) dan Kelompok Dropdown Armada</p>
+          <p class="text-xs text-slate-500">Tampilan Week 1 - 5 per Hari (Senin - Minggu) dan Kelompok Dropdown List Armada</p>
         </div>
 
         <!-- Filter Bulan & Tahun -->
@@ -102,9 +100,7 @@
 
     </section>
 
-    <!-- ========================================================================= -->
-    <!-- TAB 2: FILTER JADWAL KIRIM (FORM & TABLE SUMMARY)                          -->
-    <!-- ========================================================================= -->
+    <!-- TAB 2: FILTER JADWAL KIRIM -->
     <section id="viewFilter" class="hidden space-y-6">
 
       <!-- FILTER & PUSAT UNDUH BAR -->
@@ -524,7 +520,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER DENGAN DROPDOWN ACCORDION ARMADA
+    // MODUL: RENDERING DASHBOARD KALENDER DENGAN DROPDOWN LIST TABEL RINGKAS
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -597,45 +593,50 @@
               const totalBeratArmada = list.reduce((sum, item) => sum + item.TotalBerat, 0);
 
               if (list.length > 0) {
-                let customerItemsHtml = '';
+                let customerListRows = '';
                 list.forEach(row => {
                   const safeCust = row.Customer.replace(/'/g, "\\'");
                   const safeTgl = row.Tanggal.replace(/'/g, "\\'");
-                  customerItemsHtml += `
-                    <div onclick="openDocumentModal('${safeCust}', '${safeTgl}')" class="p-2 rounded-lg bg-indigo-50/80 hover:bg-indigo-600 hover:text-white transition cursor-pointer border border-indigo-100 shadow-sm text-xs group">
-                      <div class="font-extrabold text-indigo-900 group-hover:text-amber-300 flex justify-between items-center">
-                        <span class="truncate pr-1">${row.Customer}</span>
-                        <span class="text-[10px] bg-indigo-200 group-hover:bg-indigo-800 group-hover:text-white px-1.5 py-0.2 rounded font-mono flex-shrink-0">${row.TotalDokumen} Dok</span>
+                  
+                  // Tampilan Baris List Ringkas
+                  customerListRows += `
+                    <div onclick="openDocumentModal('${safeCust}', '${safeTgl}')" 
+                         class="flex items-center justify-between py-1.5 px-2 hover:bg-indigo-100/70 rounded-lg transition cursor-pointer border-b border-slate-100 last:border-none text-xs group">
+                      <div class="min-w-0 pr-1 flex-1">
+                        <p class="font-bold text-indigo-950 group-hover:text-indigo-700 truncate text-[11px]">${row.Customer}</p>
+                        <p class="text-[10px] text-slate-500 truncate">${row.Daerah}</p>
                       </div>
-                      <div class="text-[10px] text-slate-500 group-hover:text-indigo-100 flex justify-between mt-1">
-                        <span>${row.Daerah}</span>
-                        <span class="font-bold">${row.TotalBerat.toLocaleString('id-ID')} gr</span>
+                      <div class="text-right flex-shrink-0 space-y-0.5">
+                        <span class="inline-block bg-indigo-600 group-hover:bg-amber-500 group-hover:text-slate-900 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full font-mono">
+                          ${row.TotalDokumen} Dok
+                        </span>
+                        <p class="text-[9px] font-semibold text-slate-600">${row.TotalBerat.toLocaleString('id-ID')} gr</p>
                       </div>
                     </div>`;
                 });
 
                 armadaListHtml += `
-                  <details class="group bg-white border border-indigo-100 rounded-xl overflow-hidden shadow-sm transition-all" open>
-                    <summary class="bg-indigo-50 hover:bg-indigo-100 px-3 py-2 cursor-pointer font-bold text-indigo-950 text-xs flex justify-between items-center select-none">
-                      <div class="flex items-center gap-1.5">
+                  <details class="group bg-white border border-indigo-200 rounded-xl overflow-hidden shadow-sm transition-all" open>
+                    <summary class="bg-indigo-50/90 hover:bg-indigo-100 px-2.5 py-1.5 cursor-pointer font-extrabold text-indigo-950 text-xs flex justify-between items-center select-none">
+                      <div class="flex items-center gap-1.5 truncate">
                         <i class="fa-solid fa-chevron-right group-open:rotate-90 transition-transform duration-200 text-[10px] text-indigo-600"></i>
-                        <i class="fa-solid fa-truck text-indigo-600"></i>
-                        <span>${armName}</span>
-                        <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">${list.length}</span>
+                        <i class="fa-solid fa-truck text-indigo-600 text-xs"></i>
+                        <span class="tracking-wide">${armName}</span>
+                        <span class="bg-indigo-600 text-white text-[9px] px-1.5 py-0.2 rounded-full font-mono">${list.length}</span>
                       </div>
-                      <span class="text-[10px] font-normal text-slate-500">${totalBeratArmada.toLocaleString('id-ID')} gr</span>
+                      <span class="text-[10px] font-semibold text-slate-500 pl-1 flex-shrink-0">${totalBeratArmada.toLocaleString('id-ID')} gr</span>
                     </summary>
-                    <div class="p-2 space-y-1.5 bg-slate-50/50 border-t border-indigo-50">
-                      ${customerItemsHtml}
+                    <div class="p-1 bg-white space-y-0.5 border-t border-indigo-100">
+                      ${customerListRows}
                     </div>
                   </details>`;
               } else {
                 armadaListHtml += `
                   <details class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm opacity-60">
-                    <summary class="bg-slate-50 px-3 py-1.5 cursor-pointer font-semibold text-slate-500 text-xs flex justify-between items-center select-none">
+                    <summary class="bg-slate-50 px-2.5 py-1.5 cursor-pointer font-semibold text-slate-500 text-xs flex justify-between items-center select-none">
                       <div class="flex items-center gap-1.5">
                         <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
-                        <i class="fa-solid fa-truck text-slate-400"></i>
+                        <i class="fa-solid fa-truck text-slate-400 text-xs"></i>
                         <span>${armName}</span>
                       </div>
                       <span class="text-[10px] italic text-slate-400">Kosong</span>
@@ -646,11 +647,11 @@
 
             dayColsHtml += `
               <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
-                <div class="bg-indigo-950 text-white p-2.5 text-center flex justify-between items-center">
+                <div class="bg-indigo-950 text-white p-2 text-center flex justify-between items-center">
                   <span class="text-xs font-black text-amber-400 tracking-wider">${dayNamesHeader[dayIndex - 1]}</span>
                   <span class="text-[11px] bg-indigo-800 text-indigo-200 px-2 py-0.5 rounded-full font-mono font-bold">${dateStrFormatted}</span>
                 </div>
-                <div class="p-2 space-y-2 flex-1 max-h-[380px] overflow-y-auto">
+                <div class="p-1.5 space-y-1.5 flex-1 max-h-[380px] overflow-y-auto">
                   ${armadaListHtml}
                 </div>
               </div>`;
@@ -668,7 +669,7 @@
               <span class="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-amber-400"></i> Week ${weekNum}
               </span>
-              <span class="text-xs text-indigo-200">Matriks Dropdown Armada per Hari</span>
+              <span class="text-xs text-indigo-200">Matriks List Customer per Armada</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-7 gap-3">
               ${dayColsHtml}
