@@ -211,4 +211,395 @@
       </div>
 
       <!-- CONTAINER DISPLAY CARDS ARMADA -->
-      <div id="arm
+      <div id="armadaContainer" class="space-y-8"></div>
+
+    </section>
+
+  </main>
+
+  <!-- POP-UP MODAL DETAIL TRANSACTION NUMBER & ITEM DATA -->
+  <div id="documentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 md:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-300">
+      
+      <!-- Modal Header -->
+      <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="bg-amber-400 p-2 rounded-lg text-slate-900">
+            <i class="fa-solid fa-boxes-packing text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg leading-tight" id="modalCustomerName">Detail Dokumen Customer</h3>
+            <p class="text-xs text-indigo-200" id="modalSubTitle">Rincian Dokumen & Barang Hari Ini</p>
+          </div>
+        </div>
+        <button onclick="closeDocumentModal()" class="text-indigo-200 hover:text-white text-xl font-bold p-1 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-4 md:p-6 overflow-y-auto flex-1">
+        <div id="modalLoading" class="text-center py-12">
+          <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
+          <p class="text-sm text-slate-500 font-medium">Memuat rincian item barang...</p>
+        </div>
+
+        <div id="modalContent" class="hidden space-y-4">
+          <!-- Summary Info Bar -->
+          <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-indigo-900 uppercase">Jumlah Dokumen:</span>
+              <span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-600 uppercase">Total Qty Order:</span>
+              <span id="modalTotalQtyBadge" class="bg-amber-500 text-slate-900 px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-600 uppercase">Total Delivered:</span>
+              <span id="modalTotalDeliveredBadge" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-600 uppercase">Outstanding:</span>
+              <span id="modalTotalOutstandingBadge" class="bg-rose-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
+            <table class="w-full text-left border-collapse text-xs md:text-sm">
+              <thead class="bg-slate-800 text-white uppercase text-[11px] tracking-wider sticky top-0 z-10">
+                <tr>
+                  <th class="py-3 px-3 text-center">No</th>
+                  <th class="py-3 px-3">Transaction No</th>
+                  <th class="py-3 px-3">NO PO / Ket</th>
+                  <th class="py-3 px-3">Kode Barang</th>
+                  <th class="py-3 px-3 min-w-[200px]">Nama Barang</th>
+                  <th class="py-3 px-3 text-center">Unit</th>
+                  <th class="py-3 px-3 text-center">Qty</th>
+                  <th class="py-3 px-3 text-center">Delivered Qty</th>
+                  <th class="py-3 px-3 text-center">Outstanding Qty</th>
+                  <th class="py-3 px-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="modalTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 flex-shrink-0">
+        <span class="italic"><i class="fa-solid fa-database mr-1"></i> Source: Sheet Input Order</span>
+        <button onclick="closeDocumentModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2 rounded-lg font-bold transition">
+          Tutup
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL FORM ADD ROUTING BARU -->
+  <div id="addRoutingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-300">
+      
+      <!-- Header Modal Add -->
+      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <div class="bg-amber-400 p-1.5 rounded-lg text-slate-900">
+            <i class="fa-solid fa-plus text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base leading-tight">Tambah Routing Baru</h3>
+            <p class="text-[11px] text-indigo-200">Masuk ke Sheet: <span class="font-semibold text-amber-300">Tambahan Routing</span></p>
+          </div>
+        </div>
+        <button onclick="closeAddRoutingModal()" class="text-indigo-200 hover:text-white text-lg font-bold p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Form Input Data -->
+      <form id="addRoutingForm" onsubmit="submitTambahanRouting(event)" class="p-5 space-y-3.5">
+        <input type="hidden" id="addArmadaTarget" value="" />
+        <input type="hidden" id="addDateTarget" value="" />
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Customer <span class="text-rose-500">*</span></label>
+          <input type="text" id="addCustomer" required placeholder="Contoh: Novotel Mangga Dua" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Daerah</label>
+          <input type="text" id="addDaerah" placeholder="Contoh: Kota Jakarta Selatan" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dokumen</label>
+            <input type="text" id="addDokumen" placeholder="1 Dok" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cost (Rp)</label>
+            <input type="number" id="addCost" placeholder="125000" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Value (Rp)</label>
+            <input type="number" id="addValue" placeholder="0" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <div id="addSubmitStatus" class="text-xs font-bold text-center py-1 hidden"></div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeAddRoutingModal()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+            Batal
+          </button>
+          <button type="submit" id="btnSubmitRouting" class="px-5 py-2 rounded-lg text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 transition shadow flex items-center gap-1.5">
+            <i class="fa-solid fa-paper-plane"></i> Simpan Routing
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <script>
+    const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
+    const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
+    const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
+
+    const WEBHOOK_API_URL = "https://sheetdb.io/api/v1/YOUR_SHEETDB_ID?sheet=Tambahan%20Routing";
+
+    const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
+
+    let rawData = [];
+    let orderDetailsData = [];
+    let orderMapByCustDate = new Map(); 
+    let datesList = [];
+    let currentDateIndex = 0;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const today = new Date();
+      document.getElementById('monthSelect').value = today.getMonth();
+      document.getElementById('yearSelect').value = today.getFullYear();
+      
+      fetchSheetData();
+    });
+
+    function switchTab(tab) {
+      const viewDash = document.getElementById('viewDashboard');
+      const viewFilt = document.getElementById('viewFilter');
+      const btnDash = document.getElementById('tabDashboardBtn');
+      const btnFilt = document.getElementById('tabFilterBtn');
+
+      if (tab === 'dashboard') {
+        viewDash.classList.remove('hidden');
+        viewFilt.classList.add('hidden');
+        btnDash.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow";
+        btnFilt.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2";
+      } else {
+        viewDash.classList.add('hidden');
+        viewFilt.classList.remove('hidden');
+        btnFilt.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow";
+        btnDash.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2";
+      }
+    }
+
+    function getFormattedTimestamp() {
+      const now = new Date();
+      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const dayName = days[now.getDay()];
+      const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return `${dayName}, ${dateStr} ${timeStr}`;
+    }
+
+    // PEMANGGILAN PARALEL LANGSUNG DARI GOOGLE SHEETS (SANGAT CEPTA & HILANGKAN LAG)
+    function fetchSheetData() {
+      const badge = document.getElementById('syncBadge');
+      badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
+
+      const fetchJadwal = new Promise((resolve) => {
+        Papa.parse(CSV_JADWAL_URL, {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+          complete: res => resolve(res.data || []),
+          error: () => resolve([])
+        });
+      });
+
+      const fetchOrders = new Promise((resolve) => {
+        Papa.parse(CSV_ORDER_URL, {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+          complete: res => resolve(res.data || []),
+          error: () => resolve([])
+        });
+      });
+
+      Promise.all([fetchJadwal, fetchOrders])
+        .then(([jadwalData, orderData]) => {
+          if (jadwalData.length === 0) {
+            showError();
+            return;
+          }
+
+          processRawData(jadwalData);
+          if (orderData.length > 0) {
+            processOrderDetailsData(orderData);
+            mapOrderDocsFast();
+          }
+
+          const timeStamp = getFormattedTimestamp();
+          badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
+        })
+        .catch(() => showError());
+    }
+
+    function processOrderDetailsData(data) {
+      orderMapByCustDate.clear();
+      orderDetailsData = [];
+
+      data.forEach(item => {
+        const parsed = extractRowFields(item);
+        if (!parsed.TanggalKirim || !parsed.NamaCustomer) return;
+
+        orderDetailsData.push(parsed);
+
+        // MAP INDEXING: O(1) LOOKUP
+        const cleanCust = parsed.NamaCustomer.toLowerCase().trim();
+        const key = `${cleanCust}_${parsed.TanggalKirim}`;
+
+        if (!orderMapByCustDate.has(key)) {
+          orderMapByCustDate.set(key, []);
+        }
+        orderMapByCustDate.get(key).push(parsed);
+      });
+    }
+
+    function mapOrderDocsFast() {
+      if (!rawData || rawData.length === 0) return;
+
+      rawData.forEach(row => {
+        const cleanCust = row.Customer.toLowerCase().trim();
+        const key = `${cleanCust}_${row.Tanggal}`;
+        
+        let matched = orderMapByCustDate.get(key) || [];
+
+        // FALLBACK CUST MATCH JIKA PERSAMAAN STRING KETAT TIDAK COCOK
+        if (matched.length === 0) {
+          for (let [mapKey, items] of orderMapByCustDate.entries()) {
+            if (mapKey.endsWith(`_${row.Tanggal}`)) {
+              const custInMap = mapKey.split('_')[0];
+              if (custInMap.includes(cleanCust) || cleanCust.includes(custInMap)) {
+                matched = matched.concat(items);
+              }
+            }
+          }
+        }
+
+        const docNums = matched.map(d => d.TransactionNumber).filter(Boolean);
+        const poNums = matched.map(d => d.NoPO).filter(Boolean);
+        
+        row.NoDokumenList = [...new Set(docNums)];
+        row.NoPOList = [...new Set(poNums)];
+
+        if (row.NoDokumenList.length > 0) {
+          row.TotalDokumen = row.NoDokumenList.length;
+        }
+      });
+
+      renderDashboard();
+      renderCalendarDashboard();
+    }
+
+    function showError() {
+      document.getElementById('syncBadge').innerHTML = `<i class="fa-solid fa-circle-xmark text-red-400"></i> Sync Failed`;
+      document.getElementById('armadaContainer').innerHTML = `
+        <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
+          <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+          <p class="font-bold">Gagal mengambil data dari Google Sheets!</p>
+        </div>`;
+    }
+
+    function normalizeDateString(dateStr) {
+      if (!dateStr) return '';
+      const str = String(dateStr).trim();
+      const parts = str.split(/[-/.]/);
+      if (parts.length === 3) {
+        let day, month, year;
+        if (parts[0].length === 4) {
+          year = parts[0]; month = parts[1]; day = parts[2];
+        } else {
+          day = parts[0]; month = parts[1]; year = parts[2];
+        }
+        return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+      }
+      return str;
+    }
+
+    function processRawData(data) {
+      rawData = data.map(item => {
+        const rawDate = (item['Tanggal'] || '').trim();
+        const normDate = normalizeDateString(rawDate);
+        let parsedISO = null;
+
+        if (normDate) {
+          const parts = normDate.split('-');
+          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+
+        return {
+          Tanggal: normDate || rawDate,
+          ISODate: parsedISO,
+          Customer: (item['Customer'] || '').trim(),
+          Armada: (item['Armada'] || 'Lainnya').trim().toUpperCase(),
+          Daerah: (item['Daerah'] || '-').trim(),
+          TotalDokumen: parseInt((item['Total Dokumen'] || '0').replace(/[^0-9]/g, '')) || 0,
+          TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
+          NoDokumenList: [],
+          NoPOList: []
+        };
+      }).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
+
+      datesList = [...new Set(rawData.map(item => item.Tanggal))];
+      populateFilters();
+
+      if (datesList.length > 0) {
+        currentDateIndex = 0;
+        renderDashboard();
+        renderCalendarDashboard();
+      }
+    }
+
+    function extractRowFields(item) {
+      const getVal = (keys) => {
+        for (let k of keys) {
+          if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+            return String(item[k]).trim();
+          }
+        }
+        return '';
+      };
+
+      const parseNum = (val) => {
+        if (!val) return 0;
+        const cleaned = String(val).replace(/[^0-9.-]/g, '');
+        return parseFloat(cleaned) || 0;
+      };
+
+      return {
+        TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
+        NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
+        TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
+        NoPO: getVal(['NO PO', 'PO Number']) || '-',
+        Status: getVal(['Status']) || '-',
+        Armada: getVal(['Armada']) || '-',
+        NamaBarang: getVal(['Product Name', 'Nama Barang', 'O']) || '-',
+        KodeBarang: getVal(['Product Code', 'Kode Barang', 'P']) || '-',
+        Unit: getVal(['Unit', 'Q']) || 'Pack',
