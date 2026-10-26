@@ -369,7 +369,8 @@
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
 
-    const WEBHOOK_API_URL = "https://sheetdb.io/api/v1/YOUR_SHEETDB_ID?sheet=Tambahan%20Routing";
+    // URL Web App dari Google Apps Script Anda
+    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxM92AZNJUgEzCHtsUbAlAsTxKlkcoTn-UogjEZfqVS0vskXfzfPjhtjDsn6W9VGGvm/exec";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
@@ -415,7 +416,6 @@
       return `${dayName}, ${dateStr} ${timeStr}`;
     }
 
-    // MEMANGGIL DATA DIRECT GOOGLE SHEET SECARA PARALEL (MENGHINDARI ORDER SHEET ERROR)
     function fetchSheetData() {
       const badge = document.getElementById('syncBadge');
       badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
@@ -614,9 +614,7 @@
       }
     }
 
-    // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER (DENGAN SLIDE & TIDAK TERPOTONG)
-    // =========================================================================
+    // RENDERING DASHBOARD KALENDER
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
       const selectedMonth = parseInt(document.getElementById('monthSelect').value);
@@ -818,9 +816,6 @@
       });
     }
 
-    // =========================================================================
-    // MODUL: RENDERING TAB FILTER & METRICS
-    // =========================================================================
     function populateFilters() {
       const armadas = [...new Set(rawData.map(item => item.Armada))];
       const daerahs = [...new Set(rawData.map(item => item.Daerah))];
@@ -1047,9 +1042,6 @@
       document.getElementById('metricValue').innerText = `Rp ${totalValue.toLocaleString('id-ID')}`;
     }
 
-    // =========================================================================
-    // MODUL: POP-UP MODAL DETAIL ITEMS
-    // =========================================================================
     function openDocumentModal(customerName, tanggalStr, armadaName) {
       const modal = document.getElementById('documentModal');
       const modalLoading = document.getElementById('modalLoading');
@@ -1143,9 +1135,6 @@
       });
     }
 
-    // =========================================================================
-    // MODUL: TAMBAH ROUTING BARU (LANGSUNG DARI GITHUB PAGES)
-    // =========================================================================
     function openAddRoutingModal(armadaName, dateFormatted) {
       document.getElementById('addArmadaTarget').value = armadaName;
       document.getElementById('addDateTarget').value = dateFormatted || '';
@@ -1165,14 +1154,13 @@
       document.getElementById('addRoutingModal').classList.add('hidden');
     }
 
+    // FUNGSI SUBMIT DENGAN GOOGLE APPS SCRIPT WEBHOOK
     function submitTambahanRouting(event) {
       event.preventDefault();
       
       const btn = document.getElementById('btnSubmitRouting');
       const statusDiv = document.getElementById('addSubmitStatus');
 
-      const armadaTarget = document.getElementById('addArmadaTarget').value || 'NINJA';
-      const targetDate = document.getElementById('addDateTarget').value;
       const customer = document.getElementById('addCustomer').value.trim();
       const daerah = document.getElementById('addDaerah').value.trim() || '-';
       const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
@@ -1182,66 +1170,59 @@
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
 
-      let dateStr = targetDate;
-      let isoStr = null;
-
-      if (!dateStr) {
-        const today = new Date();
-        dateStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-        isoStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      } else {
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-          isoStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-
-      const newItem = {
-        Tanggal: dateStr,
-        ISODate: isoStr,
+      const payload = {
         Customer: customer,
-        Armada: armadaTarget.toUpperCase(),
         Daerah: daerah,
-        TotalDokumen: parseInt(dokumen.replace(/[^0-9]/g, '')) || 1,
+        Dokumen: dokumen,
+        Cost: cost,
+        Value: value
+      };
+
+      // Update Tampilan Lokal Langsung
+      rawData.push({
+        Tanggal: document.getElementById('addDateTarget').value || '',
+        Customer: customer,
+        Armada: document.getElementById('addArmadaTarget').value.toUpperCase(),
+        Daerah: daerah,
+        TotalDokumen: 1,
         TotalBerat: 0,
         Cost: cost,
         Value: value,
         NoDokumenList: [dokumen],
         NoPOList: ['-']
-      };
-
-      rawData.push(newItem);
+      });
 
       renderDashboard();
       renderCalendarDashboard();
 
-      if (WEBHOOK_API_URL && !WEBHOOK_API_URL.includes("YOUR_SHEETDB_ID")) {
-        fetch(WEBHOOK_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            "Customer": customer,
-            "Daerah": daerah,
-            "Dokumen": dokumen,
-            "Cost": cost,
-            "Value": value
-          })
-        }).catch(err => console.log('API sync error:', err));
-      }
-
-      statusDiv.innerText = '✓ Routing berhasil ditambahkan!';
-      statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
-
-      setTimeout(() => {
-        closeAddRoutingModal();
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
-      }, 800);
+      // Kirim Data ke Google Sheets
+      fetch(WEBHOOK_API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(() => {
+        statusDiv.innerText = '✓ Routing berhasil disimpan ke Google Sheets!';
+        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
+        setTimeout(() => {
+          closeAddRoutingModal();
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
+        }, 800);
+      })
+      .catch(err => {
+        console.error(err);
+        statusDiv.innerText = '✓ Routing ditambahkan ke tampilan!';
+        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
+        setTimeout(() => {
+          closeAddRoutingModal();
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
+        }, 800);
+      });
     }
 
-    // =========================================================================
-    // MODUL: UNDUH DATA (EXCEL, CSV, CETAK)
-    // =========================================================================
     function getExportData() {
       return getFilteredData().map((item, idx) => ({
         "No": idx + 1,
