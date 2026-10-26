@@ -625,7 +625,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER (UKURAN DIPERBAIKI PROPORSI UKURAN AWAL)
+    // MODUL: RENDERING DASHBOARD KALENDER (UKURAN DAN PROPORSI SESUAI GAMBAR AWAL)
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -710,40 +710,41 @@
                   
                   customerListRows += `
                     <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100 group">
-                      <td class="py-2 px-2.5 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight">
+                      <td class="py-1 px-2 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight text-[11px]">
                         ${row.Customer}
                       </td>
-                      <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight">
+                      <td class="py-1 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight text-[11px]">
                         ${row.Daerah}
                       </td>
-                      <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
-                        <span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">
+                      <td class="py-1 px-1 text-center font-mono font-bold text-slate-700 whitespace-nowrap text-[10px]">
+                        <span class="bg-amber-400 text-slate-900 px-1 py-0.2 rounded font-extrabold">
                           ${row.TotalDokumen} Dok
                         </span>
                       </td>
-                      <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">
+                      <td class="py-1 px-2 text-right font-bold text-emerald-600 whitespace-nowrap text-[11px]">
                         ${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}
                       </td>
-                      <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">
+                      <td class="py-1 px-2 text-right font-bold text-purple-600 whitespace-nowrap text-[11px]">
                         ${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}
                       </td>
                     </tr>`;
                 });
 
+                // TAMPILAN KARTU PRESISI SESUAI GAMBAR REFERENSI DENGAN TOMBOL ADD (+)
                 armadaListHtml += `
-                  <div class="mb-2 bg-indigo-50/60 rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
-                    <div class="px-3 py-2 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/50 transition" onclick="toggleArmadaDetails('${detailsId}')">
-                      <div class="flex items-center space-x-2 text-indigo-900 min-w-0">
-                        <i class="fa-solid fa-chevron-right text-[10px] text-indigo-400 flex-shrink-0"></i>
-                        <i class="fa-solid fa-truck text-indigo-700 flex-shrink-0"></i>
-                        <span class="truncate">${armName}</span>
-                        <span class="bg-indigo-600 text-white min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0">${list.length}</span>
+                  <div class="mb-1.5 bg-indigo-50/40 rounded-lg border border-indigo-100 overflow-hidden shadow-2xs">
+                    <div class="px-2.5 py-1.5 flex justify-between items-center text-[11px] font-bold cursor-pointer hover:bg-indigo-100/40 transition" onclick="toggleArmadaDetails('${detailsId}')">
+                      <div class="flex items-center space-x-1.5 text-indigo-950 min-w-0">
+                        <i class="fa-solid fa-chevron-right text-[8px] text-indigo-400 flex-shrink-0"></i>
+                        <i class="fa-solid fa-truck text-indigo-700 text-[10px] flex-shrink-0"></i>
+                        <span class="truncate font-extrabold uppercase">${armName}</span>
+                        <span class="bg-indigo-600 text-white min-w-[15px] h-[15px] px-1 rounded-full flex items-center justify-center text-[9px] font-extrabold flex-shrink-0">${list.length}</span>
                       </div>
-                      <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-                        <span class="text-indigo-900 font-extrabold text-[11px] whitespace-nowrap">
+                      <div class="flex items-center space-x-1.5 flex-shrink-0 ml-1">
+                        <span class="text-indigo-950 font-bold text-[10px] whitespace-nowrap">
                           ${totalBeratArmada > 0 ? totalBeratArmada.toLocaleString('id-ID') + ' gr' : '0 gr'}
                         </span>
-                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-5 h-5 rounded-full flex items-center justify-center transition shadow-sm font-black text-xs flex-shrink-0">
+                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-xs font-black text-[9px] flex-shrink-0">
                           <i class="fa-solid fa-plus"></i>
                         </button>
                       </div>
@@ -751,14 +752,14 @@
 
                     <div id="${detailsId}" class="hidden border-t border-indigo-100 bg-white">
                       <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs min-w-[340px]">
-                          <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b border-slate-200">
+                        <table class="w-full text-left border-collapse text-[11px] min-w-[260px]">
+                          <thead class="bg-slate-50 text-slate-500 text-[9px] uppercase font-bold border-b border-slate-200">
                             <tr>
-                              <th class="py-1.5 px-2.5">Customer</th>
-                              <th class="py-1.5 px-2">Daerah</th>
-                              <th class="py-1.5 px-1 text-center">Dokumen</th>
-                              <th class="py-1.5 px-2 text-right">Cost</th>
-                              <th class="py-1.5 px-2 text-right">Value</th>
+                              <th class="py-1 px-2">Customer</th>
+                              <th class="py-1 px-2">Daerah</th>
+                              <th class="py-1 px-1 text-center">Dok</th>
+                              <th class="py-1 px-2 text-right">Cost</th>
+                              <th class="py-1 px-2 text-right">Value</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -766,9 +767,9 @@
                           </tbody>
                         </table>
                       </div>
-                      <div class="p-1.5 bg-slate-50 border-t border-slate-100 flex justify-end">
-                        <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="text-[10px] font-bold text-indigo-900 bg-amber-400 hover:bg-amber-500 px-2 py-1 rounded transition flex items-center gap-1 shadow-sm">
-                          <i class="fa-solid fa-plus"></i> Add Data Routing
+                      <div class="p-1 bg-slate-50 border-t border-slate-100 flex justify-end">
+                        <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="text-[9px] font-bold text-indigo-900 bg-amber-400 hover:bg-amber-500 px-1.5 py-0.5 rounded transition flex items-center gap-1 shadow-2xs">
+                          <i class="fa-solid fa-plus"></i> Add
                         </button>
                       </div>
                     </div>
@@ -776,15 +777,15 @@
 
               } else {
                 armadaListHtml += `
-                  <div class="mb-2 bg-white/60 rounded-xl border border-slate-200/60 px-3 py-2 flex justify-between items-center text-xs opacity-60">
-                    <div class="flex items-center space-x-2 text-slate-400 min-w-0">
-                      <i class="fa-solid fa-chevron-right text-[10px] flex-shrink-0"></i>
-                      <i class="fa-solid fa-truck flex-shrink-0"></i>
-                      <span class="font-bold truncate">${armName}</span>
+                  <div class="mb-1.5 bg-white/60 rounded-lg border border-slate-200/50 px-2.5 py-1.5 flex justify-between items-center text-[11px]">
+                    <div class="flex items-center space-x-1.5 text-slate-400 min-w-0">
+                      <i class="fa-solid fa-chevron-right text-[8px] flex-shrink-0"></i>
+                      <i class="fa-solid fa-truck text-[10px] flex-shrink-0"></i>
+                      <span class="font-bold truncate uppercase text-[10px] text-slate-400">${armName}</span>
                     </div>
-                    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-                      <span class="italic text-[11px] text-slate-400">Kosong</span>
-                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-100 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-5 h-5 rounded-full flex items-center justify-center transition shadow-sm font-black text-xs flex-shrink-0">
+                    <div class="flex items-center space-x-1.5 flex-shrink-0 ml-1">
+                      <span class="italic text-[10px] text-slate-300">Kosong</span>
+                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-50 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-2xs font-black text-[9px] flex-shrink-0">
                         <i class="fa-solid fa-plus"></i>
                       </button>
                     </div>
@@ -793,13 +794,13 @@
             });
 
             dayColsHtml += `
-              <div class="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-sm min-w-[280px] lg:min-w-0 flex flex-col justify-between">
+              <div class="bg-white rounded-xl border border-slate-200 p-2.5 shadow-2xs flex flex-col justify-between">
                 <div>
-                  <div class="bg-indigo-950 text-white px-3 py-2 rounded-xl flex justify-between items-center mb-3">
-                    <span class="text-xs font-extrabold tracking-wider text-amber-400">
+                  <div class="bg-indigo-950 text-white px-2.5 py-1 rounded-lg flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-black tracking-wider text-amber-400">
                       ${dayNamesHeader[dayIndex - 1]}
                     </span>
-                    <span class="bg-indigo-900 text-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-700">
+                    <span class="bg-indigo-900 text-indigo-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border border-indigo-700">
                       ${dateStrFormatted}
                     </span>
                   </div>
@@ -808,18 +809,18 @@
               </div>`;
           } else {
             dayColsHtml += `
-              <div class="bg-slate-100/40 rounded-2xl border border-dashed border-slate-200 p-3.5 opacity-50 hidden lg:block">
-                <div class="text-xs font-bold text-slate-400 text-center">${dayNamesHeader[dayIndex - 1]}</div>
+              <div class="bg-slate-100/30 rounded-xl border border-dashed border-slate-200 p-2.5 opacity-40 hidden lg:block">
+                <div class="text-[10px] font-bold text-slate-400 text-center">${dayNamesHeader[dayIndex - 1]}</div>
               </div>`;
           }
         }
 
         const weekHtml = `
-          <div class="bg-slate-50/50 rounded-2xl shadow-sm border border-slate-200 p-4">
-            <div class="mb-3 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200 pb-2">
+          <div class="bg-slate-50/40 rounded-2xl shadow-2xs border border-slate-200/80 p-3">
+            <div class="mb-2 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200/60 pb-1.5">
               <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${weekNum}
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5 overflow-x-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-2.5 overflow-x-auto">
               ${dayColsHtml}
             </div>
           </div>`;
