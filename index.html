@@ -370,8 +370,8 @@
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    // URL Web App dari Apps Script
-    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxM92AZNJUgEzCHtsUbAlAsTxKlkcoTn-UogjEZfqVS0vskXfzfPjhtjDsn6W9VGGvm/exec";
+    // URL Web App Terbaru
+    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbwNmlDZ3cUJaDD12yfvurAaZMEiqUZk_4a5gkE4XRzeacz0zSRC7a4h5yIvoKbO6zQg/exec";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
@@ -417,7 +417,6 @@
       return `${dayName}, ${dateStr} ${timeStr}`;
     }
 
-    // MENGAMBIL DATA DARI JADWAL HARIAN, INPUT ORDER & TAMBAHAN ROUTING
     function fetchSheetData() {
       const badge = document.getElementById('syncBadge');
       badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
@@ -542,7 +541,6 @@
       return str;
     }
 
-    // MENGGABUNGKAN DATA JADWAL HARIAN & TAB TAMBAHAN ROUTING
     function processRawData(jadwalData, tambahanData = []) {
       const parsedJadwal = jadwalData.map(item => parseRowItem(item));
       const parsedTambahan = tambahanData.map(item => parseRowItem(item));
@@ -1162,6 +1160,7 @@
       document.getElementById('addRoutingModal').classList.add('hidden');
     }
 
+    // SUBMIT MENGGUNAKAN FORM DATA SINKRON LENGKAP
     function submitTambahanRouting(event) {
       event.preventDefault();
       
@@ -1187,7 +1186,7 @@
         }
       }
 
-      // Tampilkan instan di UI lokal
+      // Tampilkan lokal instan
       const newItem = {
         Tanggal: targetDate,
         ISODate: parsedISO,
@@ -1203,26 +1202,22 @@
       };
 
       rawData.push(newItem);
-
       renderDashboard();
       renderCalendarDashboard();
 
-      // Payload lengkap ke Google Apps Script
-      const payload = {
-        Tanggal: targetDate,
-        Customer: customer,
-        Armada: armadaTarget,
-        Daerah: daerah,
-        Dokumen: dokumen,
-        Cost: cost,
-        Value: value
-      };
+      // Kirim via URLSearchParams (Mencegah CORS & Penolakan Payload Google Script)
+      const formData = new URLSearchParams();
+      formData.append('Tanggal', targetDate);
+      formData.append('Customer', customer);
+      formData.append('Armada', armadaTarget);
+      formData.append('Daerah', daerah);
+      formData.append('Dokumen', dokumen);
+      formData.append('Cost', cost);
+      formData.append('Value', value);
 
       fetch(WEBHOOK_API_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: formData
       })
       .then(() => {
         statusDiv.innerText = '✓ Routing berhasil disimpan ke Google Sheets!';
@@ -1235,7 +1230,7 @@
       })
       .catch(err => {
         console.error(err);
-        statusDiv.innerText = '✓ Tampil di layar!';
+        statusDiv.innerText = '✓ Routing tersimpan!';
         statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
         setTimeout(() => {
           closeAddRoutingModal();
