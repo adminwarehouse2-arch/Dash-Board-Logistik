@@ -367,7 +367,7 @@
   <script>
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
-    const OPENSHEET_URL = `https://opensheet.elk.sh/${SHEET_ID}/INPUT%20ORDER`;
+    const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
 
     const WEBHOOK_API_URL = "https://sheetdb.io/api/v1/YOUR_SHEETDB_ID?sheet=Tambahan%20Routing";
 
@@ -375,6 +375,7 @@
 
     let rawData = [];
     let orderDetailsData = [];
+    let orderMapByCustDate = new Map(); 
     let datesList = [];
     let currentDateIndex = 0;
 
@@ -414,103 +415,92 @@
       return `${dayName}, ${dateStr} ${timeStr}`;
     }
 
+    // MEMANGGIL DATA DIRECT GOOGLE SHEET SECARA PARALEL (MENGHINDARI ORDER SHEET ERROR)
     function fetchSheetData() {
-      const container = document.getElementById('armadaContainer');
       const badge = document.getElementById('syncBadge');
-      
       badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
 
-      container.innerHTML = `
-        <div class="text-center py-12">
-          <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
-          <p class="text-slate-600 font-medium">Mengambil data Jadwal Harian & Input Order...</p>
-        </div>`;
-
-      Papa.parse(CSV_JADWAL_URL, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results1) {
-          if (results1.data && results1.data.length > 0) {
-            processRawData(results1.data);
-            fetchOrderSheetOpenAPI(badge);
-          } else {
-            showError();
-          }
-        },
-        error: function() {
-          showError();
-        }
-      });
-    }
-
-    function fetchOrderSheetOpenAPI(badge) {
-      fetch(OPENSHEET_URL)
-        .then(response => {
-          if (!response.ok) throw new Error('Network error');
-          return response.json();
-        })
-        .then(data => {
-          if (Array.isArray(data) && data.length > 0) {
-            processOrderDetailsJSON(data);
-            mapOrderDocsToRawData();
-            const timeStamp = getFormattedTimestamp();
-            badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
-          } else {
-            fetchOrderSheetFallbackCSV(badge);
-          }
-        })
-        .catch(() => {
-          fetchOrderSheetFallbackCSV(badge);
+      const fetchJadwal = new Promise((resolve) => {
+        Papa.parse(CSV_JADWAL_URL, {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+          complete: res => resolve(res.data || []),
+          error: () => resolve([])
         });
+      });
+
+      const fetchOrders = new Promise((resolve) => {
+        Papa.parse(CSV_ORDER_URL, {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+          complete: res => resolve(res.data || []),
+          error: () => resolve([])
+        });
+      });
+
+      Promise.all([fetchJadwal, fetchOrders])
+        .then(([jadwalData, orderData]) => {
+          if (jadwalData.length === 0) {
+            showError();
+            return;
+          }
+
+          processRawData(jadwalData);
+          if (orderData.length > 0) {
+            processOrderDetailsData(orderData);
+            mapOrderDocsFast();
+          }
+
+          const timeStamp = getFormattedTimestamp();
+          badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
+        })
+        .catch(() => showError());
     }
 
-    function fetchOrderSheetFallbackCSV(badge) {
-      const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(gvizUrl)}`;
+    function processOrderDetailsData(data) {
+      orderMapByCustDate.clear();
+      orderDetailsData = [];
 
-      Papa.parse(proxyUrl, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-          if (results.data && results.data.length > 0) {
-            processOrderDetailsData(results.data);
-            mapOrderDocsToRawData();
-            const timeStamp = getFormattedTimestamp();
-            badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
-          } else {
-            badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Order Sheet Error`;
-          }
-        },
-        error: function() {
-          badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Order Sheet Error`;
+      data.forEach(item => {
+        const parsed = extractRowFields(item);
+        if (!parsed.TanggalKirim || !parsed.NamaCustomer) return;
+
+        orderDetailsData.push(parsed);
+
+        const cleanCust = parsed.NamaCustomer.toLowerCase().trim();
+        const key = `${cleanCust}_${parsed.TanggalKirim}`;
+
+        if (!orderMapByCustDate.has(key)) {
+          orderMapByCustDate.set(key, []);
         }
+        orderMapByCustDate.get(key).push(parsed);
       });
     }
 
-    function mapOrderDocsToRawData() {
-      if (!rawData || rawData.length === 0 || !orderDetailsData || orderDetailsData.length === 0) return;
+    function mapOrderDocsFast() {
+      if (!rawData || rawData.length === 0) return;
 
       rawData.forEach(row => {
         const cleanCust = row.Customer.toLowerCase().trim();
-        const normTargetDate = row.Tanggal;
-        const cleanArmada = row.Armada.toLowerCase().trim();
+        const key = `${cleanCust}_${row.Tanggal}`;
+        
+        let matched = orderMapByCustDate.get(key) || [];
 
-        const matchedItems = orderDetailsData.filter(item => {
-          const custMatch = item.NamaCustomer.toLowerCase().includes(cleanCust) || cleanCust.includes(item.NamaCustomer.toLowerCase());
-          const dateMatch = (item.TanggalKirim === normTargetDate);
-          
-          let armadaMatch = true;
-          if (cleanArmada !== '' && item.Armada !== '-') {
-            armadaMatch = item.Armada.toLowerCase().includes(cleanArmada) || cleanArmada.includes(item.Armada.toLowerCase());
+        if (matched.length === 0) {
+          for (let [mapKey, items] of orderMapByCustDate.entries()) {
+            if (mapKey.endsWith(`_${row.Tanggal}`)) {
+              const custInMap = mapKey.split('_')[0];
+              if (custInMap.includes(cleanCust) || cleanCust.includes(custInMap)) {
+                matched = matched.concat(items);
+              }
+            }
           }
+        }
 
-          return custMatch && dateMatch && armadaMatch;
-        });
-
-        const docNums = matchedItems.map(d => d.TransactionNumber).filter(Boolean);
-        const poNums = matchedItems.map(d => d.NoPO).filter(Boolean);
+        const docNums = matched.map(d => d.TransactionNumber).filter(Boolean);
+        const poNums = matched.map(d => d.NoPO).filter(Boolean);
         
         row.NoDokumenList = [...new Set(docNums)];
         row.NoPOList = [...new Set(poNums)];
@@ -526,7 +516,7 @@
 
     function showError() {
       document.getElementById('syncBadge').innerHTML = `<i class="fa-solid fa-circle-xmark text-red-400"></i> Sync Failed`;
-      document.getElementById('armadaContainer').innerHTML = `
+      document.getElementById('calendarMatrixContainer').innerHTML = `
         <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
           <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
           <p class="font-bold">Gagal mengambil data dari Google Sheets!</p>
@@ -625,7 +615,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER (DESAIN SLIDE KESAMPING + TANPA TERPOTONG)
+    // MODUL: RENDERING DASHBOARD KALENDER (DENGAN SLIDE & TIDAK TERPOTONG)
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -730,7 +720,6 @@
                     </tr>`;
                 });
 
-                // KARTU ARMADA: LEBAR DIBUAT PAS DAN LENGKAP TANPA TERPOTONG
                 armadaListHtml += `
                   <div class="mb-2 bg-indigo-50/50 rounded-lg border border-indigo-100 overflow-hidden shadow-2xs">
                     <div class="px-2.5 py-1.5 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/60 transition gap-2" onclick="toggleArmadaDetails('${detailsId}')">
@@ -750,7 +739,6 @@
                       </div>
                     </div>
 
-                    <!-- TABEL DETAIL DENGAN SCROLL KESAMPING (GAMBAR 1 FIX) -->
                     <div id="${detailsId}" class="hidden border-t border-indigo-100 bg-white">
                       <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-xs min-w-[420px]">
@@ -816,13 +804,11 @@
           }
         }
 
-        // SLIDE KESAMPING UNTUK KARTU HARI (GAMBAR 2 FIX)
         const weekHtml = `
           <div class="bg-slate-50/40 rounded-2xl shadow-2xs border border-slate-200/80 p-3.5">
             <div class="mb-2.5 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200/60 pb-2">
               <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${weekNum}
             </div>
-            <!-- WIDGET SLIDE KESAMPING MINGGUAN -->
             <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin">
               ${dayColsHtml}
             </div>
@@ -1079,24 +1065,21 @@
       setTimeout(() => {
         const cleanTargetCust = customerName.toLowerCase().trim();
         const normTargetDate = tanggalStr;
-        const cleanTargetArmada = armadaName.toLowerCase().trim();
+        const key = `${cleanTargetCust}_${normTargetDate}`;
 
-        const matchedItems = orderDetailsData.filter(item => {
-          const custMatch = item.NamaCustomer.toLowerCase().includes(cleanTargetCust) || cleanTargetCust.includes(item.NamaCustomer.toLowerCase());
-          const dateMatch = (item.TanggalKirim === normTargetDate);
-          
-          let armadaMatch = true;
-          if (cleanTargetArmada !== '' && item.Armada !== '-') {
-            armadaMatch = item.Armada.toLowerCase().includes(cleanTargetArmada) || cleanTargetArmada.includes(item.Armada.toLowerCase());
-          }
+        let matchedItems = orderMapByCustDate.get(key) || [];
 
-          return custMatch && dateMatch && armadaMatch;
-        });
+        if (matchedItems.length === 0) {
+          matchedItems = orderDetailsData.filter(item => {
+            const custMatch = item.NamaCustomer.toLowerCase().includes(cleanTargetCust) || cleanTargetCust.includes(item.NamaCustomer.toLowerCase());
+            return custMatch && (item.TanggalKirim === normTargetDate);
+          });
+        }
 
         renderModalTable(matchedItems);
         modalLoading.classList.add('hidden');
         modalContent.classList.remove('hidden');
-      }, 150);
+      }, 50);
     }
 
     function closeDocumentModal() {
