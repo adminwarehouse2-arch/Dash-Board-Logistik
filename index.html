@@ -370,7 +370,7 @@
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    // URL Web App Terbaru yang Sudah Aktif (Anyone Access)
+    // URL Web App Terbaru yang Sudah Aktif
     const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxr22_scDEQhdBENRbTvrIMZSSfvuyLojvIIm-ZIESiz3up9y16BiiQrRett2nN7l5p/exec";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
@@ -504,8 +504,8 @@
         const docNums = matched.map(d => d.TransactionNumber).filter(Boolean);
         const poNums = matched.map(d => d.NoPO).filter(Boolean);
         
-        row.NoDokumenList = [...new Set(docNums)];
-        row.NoPOList = [...new Set(poNums)];
+        if (docNums.length > 0) row.NoDokumenList = [...new Set(docNums)];
+        if (poNums.length > 0) row.NoPOList = [...new Set(poNums)];
 
         if (row.NoDokumenList.length > 0) {
           row.TotalDokumen = row.NoDokumenList.length;
@@ -557,6 +557,7 @@
       }
     }
 
+    // FUNGSI PARSE DIPERBAIKI UNTUK MEMBACA KEDUA BENTUK SHEET DENGAN FLEKSIBEL
     function parseRowItem(item) {
       const rawDate = (item['Tanggal'] || '').trim();
       const normDate = normalizeDateString(rawDate);
@@ -564,21 +565,39 @@
 
       if (normDate) {
         const parts = normDate.split('-');
-        parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        if (parts.length === 3) {
+          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
       }
+
+      const rawDokumen = item['Dokumen'] || item['Total Dokumen'] || item['Total dok'] || '1 Dok';
+      const parsedDokumen = parseInt(String(rawDokumen).replace(/[^0-9]/g, '')) || 1;
+
+      const rawBerat = item['Total berat'] || item['Berat'] || '0';
+      const parsedBerat = parseInt(String(rawBerat).replace(/[^0-9]/g, '')) || 0;
+
+      const rawCost = item['Cost'] || '0';
+      const parsedCost = parseInt(String(rawCost).replace(/[^0-9]/g, '')) || 0;
+
+      const rawValue = item['Value'] || '0';
+      const parsedValue = parseInt(String(rawValue).replace(/[^0-9]/g, '')) || 0;
+
+      let armadaName = (item['Armada'] || 'LAINNYA').trim().toUpperCase();
+      // Menyamakan penamaan Granmax
+      if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
 
       return {
         Tanggal: normDate || rawDate,
         ISODate: parsedISO,
         Customer: (item['Customer'] || '').trim(),
-        Armada: (item['Armada'] || 'Lainnya').trim().toUpperCase(),
+        Armada: armadaName,
         Daerah: (item['Daerah'] || '-').trim(),
-        TotalDokumen: parseInt((item['Total Dokumen'] || item['Dokumen'] || '0').replace(/[^0-9]/g, '')) || 1,
-        TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
-        Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
-        Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
-        NoDokumenList: [],
-        NoPOList: []
+        TotalDokumen: parsedDokumen,
+        TotalBerat: parsedBerat,
+        Cost: parsedCost,
+        Value: parsedValue,
+        NoDokumenList: [String(rawDokumen)],
+        NoPOList: ['-']
       };
     }
 
@@ -678,11 +697,13 @@
 
             const armadaGroup = {};
             DEFAULT_ARMADAS.forEach(arm => {
-              armadaGroup[arm] = [];
+              const normArm = arm === 'GRAND MAX' ? 'GRANMAX' : arm;
+              if (!armadaGroup[normArm]) armadaGroup[normArm] = [];
             });
 
             dayMatch.items.forEach(it => {
-              const armKey = it.Armada.toUpperCase();
+              let armKey = it.Armada.toUpperCase();
+              if (armKey === 'GRAND MAX') armKey = 'GRANMAX';
               if (!armadaGroup[armKey]) armadaGroup[armKey] = [];
               armadaGroup[armKey].push(it);
             });
@@ -1172,7 +1193,9 @@
       const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
       const cost = parseInt(document.getElementById('addCost').value) || 0;
       const value = parseInt(document.getElementById('addValue').value) || 0;
-      const armadaTarget = (document.getElementById('addArmadaTarget').value || 'NINJA').toUpperCase();
+      let armadaTarget = (document.getElementById('addArmadaTarget').value || 'NINJA').toUpperCase();
+      if (armadaTarget === 'GRAND MAX') armadaTarget = 'GRANMAX';
+      
       const targetDate = document.getElementById('addDateTarget').value || '';
 
       btn.disabled = true;
