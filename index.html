@@ -39,10 +39,10 @@
 
       <!-- Kanan Atas: Sync Badge & Button -->
       <div class="flex items-center gap-2">
-        <span id="syncBadge" class="bg-indigo-800 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-700 flex items-center gap-1.5">
+        <span id="syncBadge" class="bg-indigo-800 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-700 flex items-center gap-1.5 whitespace-nowrap">
           <i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...
         </span>
-        <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-1.5 rounded-lg text-xs transition flex items-center gap-2 shadow">
+        <button onclick="fetchSheetData()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-1.5 rounded-lg text-xs transition flex items-center gap-2 shadow whitespace-nowrap">
           <i class="fa-solid fa-rotate"></i> Sync Data
         </button>
       </div>
@@ -311,7 +311,7 @@
           </div>
           <div>
             <h3 class="font-bold text-base leading-tight">Tambah Routing Baru</h3>
-            <p class="text-[11px] text-indigo-200">Menambah data khusus ke Sheet: <span class="font-semibold text-amber-300">Tambahan Routing</span></p>
+            <p class="text-[11px] text-indigo-200">Masuk ke Sheet: <span class="font-semibold text-amber-300">Tambahan Routing</span></p>
           </div>
         </div>
         <button onclick="closeAddRoutingModal()" class="text-indigo-200 hover:text-white text-lg font-bold p-1">
@@ -369,7 +369,6 @@
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const OPENSHEET_URL = `https://opensheet.elk.sh/${SHEET_ID}/INPUT%20ORDER`;
 
-    // OPTIONAL: URL Endpoint API jika Anda menghubungkan SheetDB/SheetBest untuk penyimpanan Google Sheets dari GitHub Pages
     const WEBHOOK_API_URL = "https://sheetdb.io/api/v1/YOUR_SHEETDB_ID?sheet=Tambahan%20Routing";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
@@ -618,15 +617,6 @@
       };
     }
 
-    function processOrderDetailsJSON(data) {
-      orderDetailsData = data.map(item => extractRowFields(item)).filter(row => row.TransactionNumber !== '');
-    }
-
-    function processOrderDetailsData(data) {
-      orderDetailsData = data.map(item => extractRowFields(item)).filter(row => row.TransactionNumber !== '');
-    }
-
-    // Toggle Tampilan List Detail Per Armada
     function toggleArmadaDetails(detailsId) {
       const el = document.getElementById(detailsId);
       if (el) {
@@ -635,7 +625,7 @@
     }
 
     // =========================================================================
-    // MODUL: RENDERING DASHBOARD KALENDER (PERSISI GAMBAR 3 DENGAN TOMBOL ADD +)
+    // MODUL: RENDERING DASHBOARD KALENDER (UKURAN DIPERBAIKI PROPORSI UKURAN AWAL)
     // =========================================================================
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
@@ -720,51 +710,48 @@
                   
                   customerListRows += `
                     <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100 group">
-                      <td class="py-2 px-2.5 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight min-w-[120px]">
+                      <td class="py-2 px-2.5 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight">
                         ${row.Customer}
                       </td>
-                      <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight min-w-[100px]">
+                      <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight">
                         ${row.Daerah}
                       </td>
-                      <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 whitespace-nowrap min-w-[60px]">
+                      <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
                         <span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">
                           ${row.TotalDokumen} Dok
                         </span>
                       </td>
-                      <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap min-w-[75px]">
+                      <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">
                         ${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}
                       </td>
-                      <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap min-w-[80px]">
+                      <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">
                         ${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}
                       </td>
                     </tr>`;
                 });
 
-                // TAMPILAN KARTU SESUAI GAMBAR 3 DENGAN TOMBOL ADD (+)
                 armadaListHtml += `
                   <div class="mb-2 bg-indigo-50/60 rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
                     <div class="px-3 py-2 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/50 transition" onclick="toggleArmadaDetails('${detailsId}')">
-                      <div class="flex items-center gap-1.5 text-indigo-900">
-                        <i class="fa-solid fa-chevron-right text-[10px] text-indigo-400"></i>
-                        <i class="fa-solid fa-truck text-indigo-700"></i>
-                        <span>${armName}</span>
-                        <span class="bg-indigo-600 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black">${list.length}</span>
+                      <div class="flex items-center space-x-2 text-indigo-900 min-w-0">
+                        <i class="fa-solid fa-chevron-right text-[10px] text-indigo-400 flex-shrink-0"></i>
+                        <i class="fa-solid fa-truck text-indigo-700 flex-shrink-0"></i>
+                        <span class="truncate">${armName}</span>
+                        <span class="bg-indigo-600 text-white min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0">${list.length}</span>
                       </div>
-                      <div class="flex items-center gap-2">
-                        <span class="text-indigo-900 font-extrabold text-[11px]">
+                      <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+                        <span class="text-indigo-900 font-extrabold text-[11px] whitespace-nowrap">
                           ${totalBeratArmada > 0 ? totalBeratArmada.toLocaleString('id-ID') + ' gr' : '0 gr'}
                         </span>
-                        <!-- TOMBOL ADD (+) DI SETIAP HARI DAN SETIAP ARMADA -->
-                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-5 h-5 rounded-full flex items-center justify-center transition shadow-sm font-black text-xs">
+                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-5 h-5 rounded-full flex items-center justify-center transition shadow-sm font-black text-xs flex-shrink-0">
                           <i class="fa-solid fa-plus"></i>
                         </button>
                       </div>
                     </div>
 
-                    <!-- TABEL DETAIL JIKA DI-EXPAND (SESUAI GAMBAR 4) -->
                     <div id="${detailsId}" class="hidden border-t border-indigo-100 bg-white">
                       <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
+                        <table class="w-full text-left border-collapse text-xs min-w-[340px]">
                           <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b border-slate-200">
                             <tr>
                               <th class="py-1.5 px-2.5">Customer</th>
@@ -779,7 +766,6 @@
                           </tbody>
                         </table>
                       </div>
-                      <!-- TOMBOL ADD DATA DI BAGIAN BAWAH TABEL (SEPERTI GAMBAR 4) -->
                       <div class="p-1.5 bg-slate-50 border-t border-slate-100 flex justify-end">
                         <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="text-[10px] font-bold text-indigo-900 bg-amber-400 hover:bg-amber-500 px-2 py-1 rounded transition flex items-center gap-1 shadow-sm">
                           <i class="fa-solid fa-plus"></i> Add Data Routing
@@ -789,17 +775,16 @@
                   </div>`;
 
               } else {
-                // TAMPILAN ARMADA KOSONG KETIKA TIDAK ADA JADWAL
                 armadaListHtml += `
                   <div class="mb-2 bg-white/60 rounded-xl border border-slate-200/60 px-3 py-2 flex justify-between items-center text-xs opacity-60">
-                    <div class="flex items-center gap-1.5 text-slate-400">
-                      <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                      <i class="fa-solid fa-truck"></i>
-                      <span class="font-bold">${armName}</span>
+                    <div class="flex items-center space-x-2 text-slate-400 min-w-0">
+                      <i class="fa-solid fa-chevron-right text-[10px] flex-shrink-0"></i>
+                      <i class="fa-solid fa-truck flex-shrink-0"></i>
+                      <span class="font-bold truncate">${armName}</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
                       <span class="italic text-[11px] text-slate-400">Kosong</span>
-                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-100 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-5 h-5 rounded-full flex items-center justify-center transition shadow-sm font-black text-xs">
+                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-100 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-5 h-5 rounded-full flex items-center justify-center transition shadow-sm font-black text-xs flex-shrink-0">
                         <i class="fa-solid fa-plus"></i>
                       </button>
                     </div>
@@ -808,9 +793,8 @@
             });
 
             dayColsHtml += `
-              <div class="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm min-w-[300px] lg:min-w-0 flex flex-col justify-between">
+              <div class="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-sm min-w-[280px] lg:min-w-0 flex flex-col justify-between">
                 <div>
-                  <!-- HEADER HARI SESUAI GAMBAR 3 -->
                   <div class="bg-indigo-950 text-white px-3 py-2 rounded-xl flex justify-between items-center mb-3">
                     <span class="text-xs font-extrabold tracking-wider text-amber-400">
                       ${dayNamesHeader[dayIndex - 1]}
@@ -824,7 +808,7 @@
               </div>`;
           } else {
             dayColsHtml += `
-              <div class="bg-slate-100/40 rounded-2xl border border-dashed border-slate-200 p-3 opacity-50 hidden lg:block">
+              <div class="bg-slate-100/40 rounded-2xl border border-dashed border-slate-200 p-3.5 opacity-50 hidden lg:block">
                 <div class="text-xs font-bold text-slate-400 text-center">${dayNamesHeader[dayIndex - 1]}</div>
               </div>`;
           }
@@ -835,7 +819,7 @@
             <div class="mb-3 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200 pb-2">
               <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${weekNum}
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 overflow-x-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5 overflow-x-auto">
               ${dayColsHtml}
             </div>
           </div>`;
@@ -1225,7 +1209,6 @@
         }
       }
 
-      // Menambahkan data baru langsung ke UI tanpa mengganggu data sheet lainnya
       const newItem = {
         Tanggal: dateStr,
         ISODate: isoStr,
@@ -1242,11 +1225,9 @@
 
       rawData.push(newItem);
 
-      // Refresh tampilan kalender dan dashboard
       renderDashboard();
       renderCalendarDashboard();
 
-      // Sinkronisasi background ke SheetDB jika terhubung
       if (WEBHOOK_API_URL && !WEBHOOK_API_URL.includes("YOUR_SHEETDB_ID")) {
         fetch(WEBHOOK_API_URL, {
           method: 'POST',
@@ -1261,7 +1242,7 @@
         }).catch(err => console.log('API sync error:', err));
       }
 
-      statusDiv.innerText = '✓ Routing berhasil ditambahkan ke dashboard!';
+      statusDiv.innerText = '✓ Routing berhasil ditambahkan!';
       statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
 
       setTimeout(() => {
