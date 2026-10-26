@@ -370,7 +370,7 @@
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    // URL Web App Terbaru yang Sudah Aktif
+    // URL Web App Terbaru
     const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxr22_scDEQhdBENRbTvrIMZSSfvuyLojvIIm-ZIESiz3up9y16BiiQrRett2nN7l5p/exec";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
@@ -504,8 +504,12 @@
         const docNums = matched.map(d => d.TransactionNumber).filter(Boolean);
         const poNums = matched.map(d => d.NoPO).filter(Boolean);
         
-        if (docNums.length > 0) row.NoDokumenList = [...new Set(docNums)];
-        if (poNums.length > 0) row.NoPOList = [...new Set(poNums)];
+        if (docNums.length > 0) {
+          row.NoDokumenList = [...new Set([...row.NoDokumenList, ...docNums])];
+        }
+        if (poNums.length > 0) {
+          row.NoPOList = [...new Set([...row.NoPOList, ...poNums])];
+        }
 
         if (row.NoDokumenList.length > 0) {
           row.TotalDokumen = row.NoDokumenList.length;
@@ -557,7 +561,6 @@
       }
     }
 
-    // FUNGSI PARSE DIPERBAIKI UNTUK MEMBACA KEDUA BENTUK SHEET DENGAN FLEKSIBEL
     function parseRowItem(item) {
       const rawDate = (item['Tanggal'] || '').trim();
       const normDate = normalizeDateString(rawDate);
@@ -583,7 +586,6 @@
       const parsedValue = parseInt(String(rawValue).replace(/[^0-9]/g, '')) || 0;
 
       let armadaName = (item['Armada'] || 'LAINNYA').trim().toUpperCase();
-      // Menyamakan penamaan Granmax
       if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
 
       return {
@@ -880,6 +882,7 @@
       renderDashboard();
     }
 
+    // LOGIKA FILTER DAN PENCARIAN DIKEMBANGKAN AGAR OTOMATIS BISA BUKA SEMUA TANGGAL SAAT DIKETIK PENCARIAN
     function getFilteredData() {
       const search = document.getElementById('searchInput').value.toLowerCase().trim();
       const selectedArmada = document.getElementById('armadaFilter').value;
@@ -888,18 +891,23 @@
       const endDate = document.getElementById('endDateInput').value;
 
       return rawData.filter(item => {
+        // Cek pencarian teks pada Customer, Daerah, Armada, dan Dokumen
         const docMatch = item.NoDokumenList.some(doc => doc.toLowerCase().includes(search));
         const poMatch = item.NoPOList.some(po => po.toLowerCase().includes(search));
         const searchMatch = !search || 
           item.Customer.toLowerCase().includes(search) || 
           item.Daerah.toLowerCase().includes(search) || 
+          item.Armada.toLowerCase().includes(search) ||
           docMatch || poMatch;
 
         const armadaMatch = selectedArmada === 'ALL' || item.Armada === selectedArmada;
         const daerahMatch = selectedDaerah === 'ALL' || item.Daerah === selectedDaerah;
 
         let dateMatch = true;
-        if (startDate || endDate) {
+        // Jika sedang mengetik search, abaikan pengunci tanggal aktif agar hasil dari tanggal manapun bisa muncul
+        if (search) {
+          dateMatch = true;
+        } else if (startDate || endDate) {
           if (item.ISODate) {
             if (startDate && item.ISODate < startDate) dateMatch = false;
             if (endDate && item.ISODate > endDate) dateMatch = false;
@@ -917,11 +925,13 @@
     }
 
     function applyFilters() {
+      const search = document.getElementById('searchInput').value.trim();
       const startDate = document.getElementById('startDateInput').value;
       const endDate = document.getElementById('endDateInput').value;
       const nav = document.getElementById('dateNavigator');
 
-      if (startDate || endDate) {
+      // Matikan Slide Navigator jika sedang pencarian global / filter tanggal
+      if (search || startDate || endDate) {
         nav.classList.add('opacity-50', 'pointer-events-none');
       } else {
         nav.classList.remove('opacity-50', 'pointer-events-none');
@@ -941,12 +951,15 @@
     }
 
     function renderDashboard() {
+      const search = document.getElementById('searchInput').value.trim();
       const filteredData = getFilteredData();
       const container = document.getElementById('armadaContainer');
       const startDate = document.getElementById('startDateInput').value;
       const endDate = document.getElementById('endDateInput').value;
 
-      if (startDate || endDate) {
+      if (search) {
+        document.getElementById('currentDateDisplay').innerText = `Hasil Cari: "${search}" (${filteredData.length} Data)`;
+      } else if (startDate || endDate) {
         document.getElementById('currentDateDisplay').innerText = `Rentang: ${startDate || 'Awal'} s/d ${endDate || 'Akhir'}`;
       } else if (datesList.length > 0) {
         document.getElementById('currentDateDisplay').innerText = datesList[currentDateIndex] || 'N/A';
@@ -987,7 +1000,7 @@
 
           const docBadges = row.NoDokumenList.length > 0 
             ? row.NoDokumenList.map(doc => `<span class="inline-block bg-indigo-50 border border-indigo-200 text-indigo-900 px-2 py-0.5 rounded text-[11px] font-mono font-bold mr-1 mb-1">${doc}</span>`).join('')
-            : `<span class="text-slate-400 italic text-xs">Otomatis Syncing...</span>`;
+            : `<span class="text-slate-400 italic text-xs">1 Dok</span>`;
 
           const poBadges = row.NoPOList.length > 0
             ? row.NoPOList.map(po => `<span class="inline-block bg-slate-100 border border-slate-300 text-slate-800 px-2 py-0.5 rounded text-[11px] font-mono font-semibold mr-1 mb-1">${po}</span>`).join('')
@@ -997,7 +1010,10 @@
             <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-50/60 transition cursor-pointer group">
               <td class="py-3.5 px-4 text-center text-slate-400 font-medium">${idx + 1}</td>
               <td class="py-3.5 px-4 font-bold text-indigo-900 group-hover:text-indigo-600 transition flex items-center justify-between">
-                <span>${row.Customer}</span>
+                <div>
+                  <div>${row.Customer}</div>
+                  <div class="text-[10px] font-semibold text-slate-400">${row.Tanggal}</div>
+                </div>
                 <i class="fa-solid fa-chevron-right text-xs text-indigo-400 opacity-0 group-hover:opacity-100 transition"></i>
               </td>
               <td class="py-3.5 px-4">${docBadges}</td>
@@ -1034,7 +1050,7 @@
                 <thead class="bg-slate-100 text-slate-500 uppercase text-[11px] font-extrabold border-b border-slate-200">
                   <tr>
                     <th class="py-3 px-4 text-center w-12">No</th>
-                    <th class="py-3 px-4 min-w-[180px]">Customer</th>
+                    <th class="py-3 px-4 min-w-[180px]">Customer / Tanggal</th>
                     <th class="py-3 px-4 min-w-[200px]">No Dokumen</th>
                     <th class="py-3 px-4 min-w-[180px]">No PO / Ket</th>
                     <th class="py-3 px-4">Daerah</th>
@@ -1181,7 +1197,6 @@
       document.getElementById('addRoutingModal').classList.add('hidden');
     }
 
-    // SUBMIT DATA VIA QUERY PARAMETERS DENGAN MODE NO-CORS
     function submitTambahanRouting(event) {
       event.preventDefault();
       
@@ -1209,7 +1224,6 @@
         }
       }
 
-      // Tampilkan lokal instan di tampilan dashboard
       const newItem = {
         Tanggal: targetDate,
         ISODate: parsedISO,
@@ -1228,7 +1242,6 @@
       renderDashboard();
       renderCalendarDashboard();
 
-      // Kirim parameter data via Query String ke Google Apps Script Web App
       const targetUrl = new URL(WEBHOOK_API_URL);
       targetUrl.searchParams.append('Tanggal', targetDate);
       targetUrl.searchParams.append('Customer', customer);
