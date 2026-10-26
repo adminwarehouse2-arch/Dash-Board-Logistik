@@ -368,8 +368,9 @@
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
+    const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    // URL Web App dari Google Apps Script Anda
+    // URL Web App dari Apps Script
     const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxM92AZNJUgEzCHtsUbAlAsTxKlkcoTn-UogjEZfqVS0vskXfzfPjhtjDsn6W9VGGvm/exec";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
@@ -416,38 +417,40 @@
       return `${dayName}, ${dateStr} ${timeStr}`;
     }
 
+    // MENGAMBIL DATA DARI JADWAL HARIAN, INPUT ORDER & TAMBAHAN ROUTING
     function fetchSheetData() {
       const badge = document.getElementById('syncBadge');
       badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
 
-      const fetchJadwal = new Promise((resolve) => {
+      const fetchJadwal = new Promise(resolve => {
         Papa.parse(CSV_JADWAL_URL, {
-          download: true,
-          header: true,
-          skipEmptyLines: true,
-          complete: res => resolve(res.data || []),
-          error: () => resolve([])
+          download: true, header: true, skipEmptyLines: true,
+          complete: res => resolve(res.data || []), error: () => resolve([])
         });
       });
 
-      const fetchOrders = new Promise((resolve) => {
+      const fetchOrders = new Promise(resolve => {
         Papa.parse(CSV_ORDER_URL, {
-          download: true,
-          header: true,
-          skipEmptyLines: true,
-          complete: res => resolve(res.data || []),
-          error: () => resolve([])
+          download: true, header: true, skipEmptyLines: true,
+          complete: res => resolve(res.data || []), error: () => resolve([])
         });
       });
 
-      Promise.all([fetchJadwal, fetchOrders])
-        .then(([jadwalData, orderData]) => {
-          if (jadwalData.length === 0) {
+      const fetchTambahan = new Promise(resolve => {
+        Papa.parse(CSV_TAMBAHAN_URL, {
+          download: true, header: true, skipEmptyLines: true,
+          complete: res => resolve(res.data || []), error: () => resolve([])
+        });
+      });
+
+      Promise.all([fetchJadwal, fetchOrders, fetchTambahan])
+        .then(([jadwalData, orderData, tambahanData]) => {
+          if (jadwalData.length === 0 && tambahanData.length === 0) {
             showError();
             return;
           }
 
-          processRawData(jadwalData);
+          processRawData(jadwalData, tambahanData);
           if (orderData.length > 0) {
             processOrderDetailsData(orderData);
             mapOrderDocsFast();
@@ -539,31 +542,12 @@
       return str;
     }
 
-    function processRawData(data) {
-      rawData = data.map(item => {
-        const rawDate = (item['Tanggal'] || '').trim();
-        const normDate = normalizeDateString(rawDate);
-        let parsedISO = null;
+    // MENGGABUNGKAN DATA JADWAL HARIAN & TAB TAMBAHAN ROUTING
+    function processRawData(jadwalData, tambahanData = []) {
+      const parsedJadwal = jadwalData.map(item => parseRowItem(item));
+      const parsedTambahan = tambahanData.map(item => parseRowItem(item));
 
-        if (normDate) {
-          const parts = normDate.split('-');
-          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-
-        return {
-          Tanggal: normDate || rawDate,
-          ISODate: parsedISO,
-          Customer: (item['Customer'] || '').trim(),
-          Armada: (item['Armada'] || 'Lainnya').trim().toUpperCase(),
-          Daerah: (item['Daerah'] || '-').trim(),
-          TotalDokumen: parseInt((item['Total Dokumen'] || '0').replace(/[^0-9]/g, '')) || 0,
-          TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
-          Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
-          Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
-          NoDokumenList: [],
-          NoPOList: []
-        };
-      }).filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
+      rawData = [...parsedJadwal, ...parsedTambahan].filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
 
       datesList = [...new Set(rawData.map(item => item.Tanggal))];
       populateFilters();
@@ -573,6 +557,31 @@
         renderDashboard();
         renderCalendarDashboard();
       }
+    }
+
+    function parseRowItem(item) {
+      const rawDate = (item['Tanggal'] || '').trim();
+      const normDate = normalizeDateString(rawDate);
+      let parsedISO = null;
+
+      if (normDate) {
+        const parts = normDate.split('-');
+        parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+
+      return {
+        Tanggal: normDate || rawDate,
+        ISODate: parsedISO,
+        Customer: (item['Customer'] || '').trim(),
+        Armada: (item['Armada'] || 'Lainnya').trim().toUpperCase(),
+        Daerah: (item['Daerah'] || '-').trim(),
+        TotalDokumen: parseInt((item['Total Dokumen'] || item['Dokumen'] || '0').replace(/[^0-9]/g, '')) || 1,
+        TotalBerat: parseInt((item['Total berat'] || '0').replace(/[^0-9]/g, '')) || 0,
+        Cost: parseInt((item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
+        Value: parseInt((item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
+        NoDokumenList: [],
+        NoPOList: []
+      };
     }
 
     function extractRowFields(item) {
@@ -614,7 +623,6 @@
       }
     }
 
-    // RENDERING DASHBOARD KALENDER
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
       const selectedMonth = parseInt(document.getElementById('monthSelect').value);
@@ -1154,7 +1162,6 @@
       document.getElementById('addRoutingModal').classList.add('hidden');
     }
 
-    // FUNGSI SUBMIT DENGAN GOOGLE APPS SCRIPT WEBHOOK
     function submitTambahanRouting(event) {
       event.preventDefault();
       
@@ -1166,36 +1173,51 @@
       const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
       const cost = parseInt(document.getElementById('addCost').value) || 0;
       const value = parseInt(document.getElementById('addValue').value) || 0;
+      const armadaTarget = (document.getElementById('addArmadaTarget').value || 'NINJA').toUpperCase();
+      const targetDate = document.getElementById('addDateTarget').value || '';
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
 
-      const payload = {
+      let parsedISO = null;
+      if (targetDate) {
+        const parts = targetDate.split('-');
+        if (parts.length === 3) {
+          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+
+      // Tampilkan instan di UI lokal
+      const newItem = {
+        Tanggal: targetDate,
+        ISODate: parsedISO,
         Customer: customer,
+        Armada: armadaTarget,
+        Daerah: daerah,
+        TotalDokumen: parseInt(dokumen.replace(/[^0-9]/g, '')) || 1,
+        TotalBerat: 0,
+        Cost: cost,
+        Value: value,
+        NoDokumenList: [dokumen],
+        NoPOList: ['-']
+      };
+
+      rawData.push(newItem);
+
+      renderDashboard();
+      renderCalendarDashboard();
+
+      // Payload lengkap ke Google Apps Script
+      const payload = {
+        Tanggal: targetDate,
+        Customer: customer,
+        Armada: armadaTarget,
         Daerah: daerah,
         Dokumen: dokumen,
         Cost: cost,
         Value: value
       };
 
-      // Update Tampilan Lokal Langsung
-      rawData.push({
-        Tanggal: document.getElementById('addDateTarget').value || '',
-        Customer: customer,
-        Armada: document.getElementById('addArmadaTarget').value.toUpperCase(),
-        Daerah: daerah,
-        TotalDokumen: 1,
-        TotalBerat: 0,
-        Cost: cost,
-        Value: value,
-        NoDokumenList: [dokumen],
-        NoPOList: ['-']
-      });
-
-      renderDashboard();
-      renderCalendarDashboard();
-
-      // Kirim Data ke Google Sheets
       fetch(WEBHOOK_API_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -1213,7 +1235,7 @@
       })
       .catch(err => {
         console.error(err);
-        statusDiv.innerText = '✓ Routing ditambahkan ke tampilan!';
+        statusDiv.innerText = '✓ Tampil di layar!';
         statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
         setTimeout(() => {
           closeAddRoutingModal();
