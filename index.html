@@ -370,8 +370,8 @@
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    // URL Web App Terbaru
-    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbwNmlDZ3cUJaDD12yfvurAaZMEiqUZk_4a5gkE4XRzeacz0zSRC7a4h5yIvoKbO6zQg/exec";
+    // URL Web App Terbaru yang Sudah Aktif (Anyone Access)
+    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxr22_scDEQhdBENRbTvrIMZSSfvuyLojvIIm-ZIESiz3up9y16BiiQrRett2nN7l5p/exec";
 
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
@@ -1160,7 +1160,7 @@
       document.getElementById('addRoutingModal').classList.add('hidden');
     }
 
-    // SUBMIT MENGGUNAKAN FORM DATA SINKRON LENGKAP
+    // SUBMIT DATA VIA QUERY PARAMETERS DENGAN MODE NO-CORS
     function submitTambahanRouting(event) {
       event.preventDefault();
       
@@ -1186,7 +1186,7 @@
         }
       }
 
-      // Tampilkan lokal instan
+      // Tampilkan lokal instan di tampilan dashboard
       const newItem = {
         Tanggal: targetDate,
         ISODate: parsedISO,
@@ -1205,19 +1205,19 @@
       renderDashboard();
       renderCalendarDashboard();
 
-      // Kirim via URLSearchParams (Mencegah CORS & Penolakan Payload Google Script)
-      const formData = new URLSearchParams();
-      formData.append('Tanggal', targetDate);
-      formData.append('Customer', customer);
-      formData.append('Armada', armadaTarget);
-      formData.append('Daerah', daerah);
-      formData.append('Dokumen', dokumen);
-      formData.append('Cost', cost);
-      formData.append('Value', value);
+      // Kirim parameter data via Query String ke Google Apps Script Web App
+      const targetUrl = new URL(WEBHOOK_API_URL);
+      targetUrl.searchParams.append('Tanggal', targetDate);
+      targetUrl.searchParams.append('Customer', customer);
+      targetUrl.searchParams.append('Armada', armadaTarget);
+      targetUrl.searchParams.append('Daerah', daerah);
+      targetUrl.searchParams.append('Dokumen', dokumen);
+      targetUrl.searchParams.append('Cost', cost);
+      targetUrl.searchParams.append('Value', value);
 
-      fetch(WEBHOOK_API_URL, {
+      fetch(targetUrl.toString(), {
         method: 'POST',
-        body: formData
+        mode: 'no-cors'
       })
       .then(() => {
         statusDiv.innerText = '✓ Routing berhasil disimpan ke Google Sheets!';
@@ -1229,7 +1229,7 @@
         }, 800);
       })
       .catch(err => {
-        console.error(err);
+        console.error("Error saving:", err);
         statusDiv.innerText = '✓ Routing tersimpan!';
         statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
         setTimeout(() => {
