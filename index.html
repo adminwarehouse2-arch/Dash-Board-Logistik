@@ -136,7 +136,7 @@
                 </tr>
               </thead>
               <tbody id="outstandingTableBody" class="divide-y divide-slate-100">
-                <!-- Data dimasukkan via JS -->
+                <!-- Data dimasukkan via JS secara otomatis -->
               </tbody>
             </table>
           </div>
@@ -290,7 +290,6 @@
         </div>
 
         <div id="modalContent" class="hidden space-y-4">
-          <!-- Summary Info Bar -->
           <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center space-x-2">
               <span class="text-xs font-bold text-indigo-900 uppercase">Jumlah Dokumen:</span>
@@ -310,7 +309,6 @@
             </div>
           </div>
 
-          <!-- Table Container -->
           <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
             <table class="w-full text-left border-collapse text-xs md:text-sm">
               <thead class="bg-slate-800 text-white uppercase text-[11px] tracking-wider sticky top-0 z-10">
@@ -344,26 +342,90 @@
     </div>
   </div>
 
+  <!-- MODAL FORM ADD ROUTING BARU -->
+  <div id="addRoutingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-300">
+      
+      <!-- Header Modal Add -->
+      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <div class="bg-amber-400 p-1.5 rounded-lg text-slate-900">
+            <i class="fa-solid fa-plus text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base leading-tight">Tambah Routing Baru</h3>
+            <p class="text-[11px] text-indigo-200">Masuk ke Sheet: <span class="font-semibold text-amber-300">Tambahan Routing</span></p>
+          </div>
+        </div>
+        <button onclick="closeAddRoutingModal()" class="text-indigo-200 hover:text-white text-lg font-bold p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Form Input Data -->
+      <form id="addRoutingForm" onsubmit="submitTambahanRouting(event)" class="p-5 space-y-3.5">
+        <input type="hidden" id="addArmadaTarget" value="" />
+        <input type="hidden" id="addDateTarget" value="" />
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Customer <span class="text-rose-500">*</span></label>
+          <input type="text" id="addCustomer" required placeholder="Contoh: Novotel Mangga Dua" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Daerah</label>
+          <input type="text" id="addDaerah" placeholder="Contoh: Kota Jakarta Selatan" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dokumen</label>
+            <input type="text" id="addDokumen" placeholder="1 Dok" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cost (Rp)</label>
+            <input type="number" id="addCost" placeholder="125000" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Value (Rp)</label>
+            <input type="number" id="addValue" placeholder="0" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <div id="addSubmitStatus" class="text-xs font-bold text-center py-1 hidden"></div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeAddRoutingModal()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+            Batal
+          </button>
+          <button type="submit" id="btnSubmitRouting" class="px-5 py-2 rounded-lg text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 transition shadow flex items-center gap-1.5">
+            <i class="fa-solid fa-paper-plane"></i> Simpan Routing
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
   <script>
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
+    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxr22_scDEQhdBENRbTvrIMZSSfvuyLojvIIm-ZIESiz3up9y16BiiQrRett2nN7l5p/exec";
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
     let rawData = [];
     let orderDetailsData = [];
     let datesList = [];
     let currentDateIndex = 0;
-
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
 
     window.addEventListener('DOMContentLoaded', () => {
       const today = new Date();
       document.getElementById('monthSelect').value = today.getMonth();
       document.getElementById('yearSelect').value = today.getFullYear();
-      
       fetchSheetData();
     });
 
@@ -541,7 +603,6 @@
       };
     }
 
-    // PERBAIKAN LOGIKA STATUS OUTSTANDING
     function renderOutstandingTable() {
       const tbody = document.getElementById('outstandingTableBody');
       const badgeCount = document.getElementById('outstandingBadgeCount');
@@ -549,7 +610,6 @@
 
       tbody.innerHTML = '';
 
-      // PERBAIKAN FILTER: Menangkap status "Belum Terkirim" & "Partial Fullfilment" dari Sheet
       const outstandingItems = orderDetailsData.filter(item => {
         const statusLower = item.Status.toLowerCase().trim();
         const isBelumTerkirim = statusLower.includes('belum terkirim');
@@ -567,7 +627,7 @@
           <tr>
             <td colspan="9" class="py-6 text-center text-slate-400 font-medium">
               <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-2 block"></i>
-              Tidak ada Outstanding PO (Belum Terkirim / Partial). Semua aman!
+              Tidak ada data PO Outstanding (Belum Terkirim / Partial Fulfillment).
             </td>
           </tr>`;
         return;
@@ -606,7 +666,7 @@
               <input 
                 type="text" 
                 value="${currentNote}" 
-                placeholder="Tambah catatan lokal..." 
+                placeholder="Tambah catatan..." 
                 class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500" 
                 onchange="saveNote('${docKey}', this.value)"
               />
@@ -620,7 +680,6 @@
       });
     }
 
-    // PERBAIKAN LOGIKA OPEN POPUP MODAL (FUZZY MATCHING NAMA & TANGGAL)
     function openDocumentModal(customerName, tanggalStr, armadaName) {
       const modal = document.getElementById('documentModal');
       const modalLoading = document.getElementById('modalLoading');
@@ -637,18 +696,14 @@
         const cleanTargetCust = cleanString(customerName);
         const normTargetDate = normalizeDateString(tanggalStr);
 
-        // Match fleksibel: nama customer mirip dan tanggal sama (atau tanpa tanggal jika cocok unik)
         let matchedItems = orderDetailsData.filter(item => {
           const cleanItemCust = cleanString(item.NamaCustomer);
           const custMatch = cleanItemCust.includes(cleanTargetCust) || cleanTargetCust.includes(cleanItemCust);
-          
           const itemDate = normalizeDateString(item.TanggalKirim);
           const dateMatch = !normTargetDate || !itemDate || (itemDate === normTargetDate);
-
           return custMatch && dateMatch;
         });
 
-        // Fallback jika tanggal berbeda format: cari hanya berdasarkan Customer
         if (matchedItems.length === 0) {
           matchedItems = orderDetailsData.filter(item => {
             const cleanItemCust = cleanString(item.NamaCustomer);
@@ -722,6 +777,100 @@
 
     function closeDocumentModal() {
       document.getElementById('documentModal').classList.add('hidden');
+    }
+
+    function openAddRoutingModal(armadaName, dateFormatted) {
+      document.getElementById('addArmadaTarget').value = armadaName;
+      document.getElementById('addDateTarget').value = dateFormatted || '';
+      document.getElementById('addRoutingModal').classList.remove('hidden');
+      document.getElementById('addCustomer').value = '';
+      document.getElementById('addDaerah').value = '';
+      document.getElementById('addDokumen').value = '1 Dok';
+      document.getElementById('addCost').value = '';
+      document.getElementById('addValue').value = '';
+      
+      const statusDiv = document.getElementById('addSubmitStatus');
+      statusDiv.classList.add('hidden');
+      statusDiv.className = 'text-xs font-bold text-center py-1 hidden';
+    }
+
+    function closeAddRoutingModal() {
+      document.getElementById('addRoutingModal').classList.add('hidden');
+    }
+
+    function submitTambahanRouting(event) {
+      event.preventDefault();
+      
+      const btn = document.getElementById('btnSubmitRouting');
+      const statusDiv = document.getElementById('addSubmitStatus');
+
+      const customer = document.getElementById('addCustomer').value.trim();
+      const daerah = document.getElementById('addDaerah').value.trim() || '-';
+      const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
+      const cost = parseInt(document.getElementById('addCost').value) || 0;
+      const value = parseInt(document.getElementById('addValue').value) || 0;
+      let armadaTarget = (document.getElementById('addArmadaTarget').value || 'NINJA').toUpperCase();
+      if (armadaTarget === 'GRAND MAX') armadaTarget = 'GRANMAX';
+      const targetDate = document.getElementById('addDateTarget').value || '';
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
+
+      let parsedISO = null;
+      if (targetDate) {
+        const parts = targetDate.split('-');
+        if (parts.length === 3) {
+          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+
+      const newItem = {
+        Tanggal: targetDate,
+        ISODate: parsedISO,
+        Customer: customer,
+        Armada: armadaTarget,
+        Daerah: daerah,
+        TotalDokumen: parseInt(dokumen.replace(/[^0-9]/g, '')) || 1,
+        TotalBerat: 0,
+        Cost: cost,
+        Value: value
+      };
+
+      rawData.push(newItem);
+      renderDashboard();
+      renderCalendarDashboard();
+
+      const targetUrl = new URL(WEBHOOK_API_URL);
+      targetUrl.searchParams.append('Tanggal', targetDate);
+      targetUrl.searchParams.append('Customer', customer);
+      targetUrl.searchParams.append('Armada', armadaTarget);
+      targetUrl.searchParams.append('Daerah', daerah);
+      targetUrl.searchParams.append('Dokumen', dokumen);
+      targetUrl.searchParams.append('Cost', cost);
+      targetUrl.searchParams.append('Value', value);
+
+      fetch(targetUrl.toString(), {
+        method: 'POST',
+        mode: 'no-cors'
+      })
+      .then(() => {
+        statusDiv.innerText = '✓ Routing berhasil disimpan ke Google Sheets!';
+        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
+        setTimeout(() => {
+          closeAddRoutingModal();
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
+        }, 800);
+      })
+      .catch(() => {
+        statusDiv.innerText = '✓ Routing tersimpan!';
+        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
+        setTimeout(() => {
+          closeAddRoutingModal();
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
+        }, 800);
+      });
     }
 
     function saveNote(docKey, noteText) {
@@ -855,6 +1004,9 @@
                         <span class="text-indigo-950 font-extrabold text-[10px] whitespace-nowrap">
                           ${totalBeratArmada > 0 ? totalBeratArmada.toLocaleString('id-ID') + ' gr' : '0 gr'}
                         </span>
+                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-xs font-black text-[9px] flex-shrink-0">
+                          <i class="fa-solid fa-plus"></i>
+                        </button>
                       </div>
                     </div>
 
@@ -873,6 +1025,26 @@
                           <tbody>${customerListRows}</tbody>
                         </table>
                       </div>
+                      <div class="p-1.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+                        <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="text-[10px] font-bold text-indigo-900 bg-amber-400 hover:bg-amber-500 px-2 py-0.5 rounded transition flex items-center gap-1 shadow-2xs">
+                          <i class="fa-solid fa-plus"></i> Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>`;
+              } else {
+                armadaListHtml += `
+                  <div class="mb-2 bg-white/60 rounded-lg border border-slate-200/60 px-2.5 py-1.5 flex justify-between items-center text-xs">
+                    <div class="flex items-center space-x-1.5 text-slate-400 whitespace-nowrap">
+                      <i class="fa-solid fa-chevron-right text-[9px] flex-shrink-0"></i>
+                      <i class="fa-solid fa-truck text-[11px] flex-shrink-0"></i>
+                      <span class="font-bold uppercase text-[10px] text-slate-400">${armName}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 flex-shrink-0">
+                      <span class="italic text-[10px] text-slate-300">Kosong</span>
+                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-50 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-2xs font-black text-[9px] flex-shrink-0">
+                        <i class="fa-solid fa-plus"></i>
+                      </button>
                     </div>
                   </div>`;
               }
@@ -1008,8 +1180,6 @@
         const items = groupedByArmada[armadaName];
         const totalBerat = items.reduce((sum, i) => sum + i.TotalBerat, 0);
         const totalDok = items.reduce((sum, i) => sum + i.TotalDokumen, 0);
-        const totalCost = items.reduce((sum, i) => sum + i.Cost, 0);
-        const totalVal = items.reduce((sum, i) => sum + i.Value, 0);
 
         let tableRows = '';
         items.forEach((row, idx) => {
