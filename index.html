@@ -161,7 +161,7 @@
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer / No Dokumen</label>
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
-              <input type="text" id="searchInput" oninput="debounceApplyFilters()" placeholder="Ketik customer, daerah, No Dokumen, atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah, No Dokumen, atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
 
@@ -344,87 +344,18 @@
     </div>
   </div>
 
-  <!-- MODAL FORM ADD ROUTING BARU -->
-  <div id="addRoutingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-300">
-      
-      <!-- Header Modal Add -->
-      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
-        <div class="flex items-center space-x-2">
-          <div class="bg-amber-400 p-1.5 rounded-lg text-slate-900">
-            <i class="fa-solid fa-plus text-base"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-base leading-tight">Tambah Routing Baru</h3>
-            <p class="text-[11px] text-indigo-200">Masuk ke Sheet: <span class="font-semibold text-amber-300">Tambahan Routing</span></p>
-          </div>
-        </div>
-        <button onclick="closeAddRoutingModal()" class="text-indigo-200 hover:text-white text-lg font-bold p-1">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <!-- Form Input Data -->
-      <form id="addRoutingForm" onsubmit="submitTambahanRouting(event)" class="p-5 space-y-3.5">
-        <input type="hidden" id="addArmadaTarget" value="" />
-        <input type="hidden" id="addDateTarget" value="" />
-
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Customer <span class="text-rose-500">*</span></label>
-          <input type="text" id="addCustomer" required placeholder="Contoh: Novotel Mangga Dua" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Daerah</label>
-          <input type="text" id="addDaerah" placeholder="Contoh: Kota Jakarta Selatan" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-        </div>
-
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dokumen</label>
-            <input type="text" id="addDokumen" placeholder="1 Dok" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cost (Rp)</label>
-            <input type="number" id="addCost" placeholder="125000" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Value (Rp)</label>
-            <input type="number" id="addValue" placeholder="0" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-        </div>
-
-        <div id="addSubmitStatus" class="text-xs font-bold text-center py-1 hidden"></div>
-
-        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-          <button type="button" onclick="closeAddRoutingModal()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
-            Batal
-          </button>
-          <button type="submit" id="btnSubmitRouting" class="px-5 py-2 rounded-lg text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 transition shadow flex items-center gap-1.5">
-            <i class="fa-solid fa-paper-plane"></i> Simpan Routing
-          </button>
-        </div>
-      </form>
-
-    </div>
-  </div>
-
   <script>
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxr22_scDEQhdBENRbTvrIMZSSfvuyLojvIIm-ZIESiz3up9y16BiiQrRett2nN7l5p/exec";
-
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
     let rawData = [];
     let orderDetailsData = [];
-    let orderMapByCustDate = new Map(); 
     let datesList = [];
     let currentDateIndex = 0;
-    let debounceTimer = null;
 
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
 
@@ -455,210 +386,9 @@
       }
     }
 
-    function getFormattedTimestamp() {
-      const now = new Date();
-      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-      const dayName = days[now.getDay()];
-      const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      return `${dayName}, ${dateStr} ${timeStr}`;
-    }
-
-    function fetchSheetData() {
-      const badge = document.getElementById('syncBadge');
-      badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
-
-      const fetchJadwal = new Promise(resolve => {
-        Papa.parse(CSV_JADWAL_URL, {
-          download: true, header: true, skipEmptyLines: true, fastMode: true,
-          complete: res => resolve(res.data || []), error: () => resolve([])
-        });
-      });
-
-      const fetchOrders = new Promise(resolve => {
-        Papa.parse(CSV_ORDER_URL, {
-          download: true, header: true, skipEmptyLines: true, fastMode: true,
-          complete: res => resolve(res.data || []), error: () => resolve([])
-        });
-      });
-
-      const fetchTambahan = new Promise(resolve => {
-        Papa.parse(CSV_TAMBAHAN_URL, {
-          download: true, header: true, skipEmptyLines: true, fastMode: true,
-          complete: res => resolve(res.data || []), error: () => resolve([])
-        });
-      });
-
-      Promise.all([fetchJadwal, fetchOrders, fetchTambahan])
-        .then(([jadwalData, orderData, tambahanData]) => {
-          processRawData(jadwalData, tambahanData);
-          if (orderData.length > 0) {
-            processOrderDetailsData(orderData);
-            mapOrderDocsFast();
-          }
-          renderOutstandingTable();
-
-          const timeStamp = getFormattedTimestamp();
-          badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
-        })
-        .catch(() => showError());
-    }
-
-    function processOrderDetailsData(data) {
-      orderMapByCustDate.clear();
-      orderDetailsData = [];
-
-      for (let i = 0; i < data.length; i++) {
-        const parsed = extractRowFields(data[i]);
-        if (!parsed.TanggalKirim || !parsed.NamaCustomer) continue;
-
-        orderDetailsData.push(parsed);
-
-        const cleanCust = parsed.NamaCustomer.toLowerCase().trim();
-        const key = `${cleanCust}_${parsed.TanggalKirim}`;
-
-        let arr = orderMapByCustDate.get(key);
-        if (!arr) {
-          arr = [];
-          orderMapByCustDate.set(key, arr);
-        }
-        arr.push(parsed);
-      }
-    }
-
-    function mapOrderDocsFast() {
-      if (!rawData || rawData.length === 0) return;
-
-      for (let i = 0; i < rawData.length; i++) {
-        const row = rawData[i];
-        const cleanCust = row.Customer.toLowerCase().trim();
-        const key = `${cleanCust}_${row.Tanggal}`;
-        
-        let matched = orderMapByCustDate.get(key);
-        if (!matched) {
-          matched = [];
-        }
-
-        const docNums = [];
-        const poNums = [];
-        
-        for (let j = 0; j < matched.length; j++) {
-          if (matched[j].TransactionNumber) docNums.push(matched[j].TransactionNumber);
-          if (matched[j].NoPO) poNums.push(matched[j].NoPO);
-        }
-        
-        if (docNums.length > 0) {
-          row.NoDokumenList = Array.from(new Set([...row.NoDokumenList, ...docNums]));
-        }
-        if (poNums.length > 0) {
-          row.NoPOList = Array.from(new Set([...row.NoPOList, ...poNums]));
-        }
-
-        if (row.NoDokumenList.length > 0) {
-          row.TotalDokumen = row.NoDokumenList.length;
-        }
-      }
-
-      renderDashboard();
-      renderCalendarDashboard();
-    }
-
-    function toggleOutstandingSection() {
-      const content = document.getElementById('outstandingContent');
-      const icon = document.getElementById('outstandingArrowIcon');
-      content.classList.toggle('hidden');
-      icon.classList.toggle('rotate-180');
-    }
-
-    function renderOutstandingTable() {
-      const tbody = document.getElementById('outstandingTableBody');
-      const badgeCount = document.getElementById('outstandingBadgeCount');
-      if (!tbody || !badgeCount) return;
-
-      tbody.innerHTML = '';
-
-      const outstandingItems = orderDetailsData.filter(item => {
-        const statusLower = item.Status.toLowerCase();
-        return item.OutstandingQty > 0 || 
-               statusLower.includes('partial') || 
-               statusLower.includes('pending') || 
-               statusLower.includes('process');
-      });
-
-      badgeCount.innerText = outstandingItems.length;
-
-      if (outstandingItems.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="9" class="py-6 text-center text-slate-400 font-medium">
-              <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-2 block"></i>
-              Tidak ada Outstanding PO yang belum terkirim. Semua aman!
-            </td>
-          </tr>`;
-        return;
-      }
-
-      let rowsHtml = '';
-      outstandingItems.forEach((row, idx) => {
-        const docKey = row.TransactionNumber || `DOC-${idx}`;
-        const currentNote = orderNotes[docKey] !== undefined ? orderNotes[docKey] : (row.Note || '');
-
-        const matchedRaw = rawData.find(r => r.Customer.toLowerCase().includes(row.NamaCustomer.toLowerCase()) && r.Tanggal === row.TanggalKirim);
-        const daerahText = matchedRaw ? matchedRaw.Daerah : '-';
-
-        let statusBadge = `<span class="bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Partially Fulfilled</span>`;
-        if (row.Status.toLowerCase().includes('pending')) {
-          statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Pending</span>`;
-        }
-
-        const safeCust = row.NamaCustomer.replace(/'/g, "\\'");
-        const safeTgl = row.TanggalKirim.replace(/'/g, "\\'");
-        const safeArmada = row.Armada.replace(/'/g, "\\'");
-
-        rowsHtml += `
-          <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
-            <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
-            <td class="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">${row.TanggalKirim}</td>
-            <td class="py-2.5 px-3 font-bold text-indigo-950">${row.NamaCustomer}</td>
-            <td class="py-2.5 px-3 font-semibold text-slate-600">${daerahText}</td>
-            <td class="py-2.5 px-3 font-mono font-bold text-indigo-700 whitespace-nowrap cursor-pointer hover:underline" onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')">
-              <i class="fa-solid fa-file-invoice text-indigo-500 mr-1"></i> ${row.TransactionNumber}
-              <span class="block text-[10px] text-slate-400 font-sans font-normal">PO: ${row.NoPO}</span>
-            </td>
-            <td class="py-2.5 px-3 text-center">${statusBadge}</td>
-            <td class="py-2.5 px-3 text-center font-black text-rose-600">${row.OutstandingQty.toLocaleString('id-ID')} ${row.Unit}</td>
-            <td class="py-2.5 px-3">
-              <input 
-                type="text" 
-                id="noteInput-${idx}" 
-                value="${currentNote}" 
-                placeholder="Tambah catatan lokal..." 
-                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                onchange="saveNote('${docKey}', this.value)"
-              />
-            </td>
-            <td class="py-2.5 px-3 text-center">
-              <button onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition shadow-2xs flex items-center gap-1 mx-auto">
-                <i class="fa-solid fa-eye"></i> Detail
-              </button>
-            </td>
-          </tr>`;
-      });
-      tbody.innerHTML = rowsHtml;
-    }
-
-    function saveNote(docKey, noteText) {
-      orderNotes[docKey] = noteText;
-      localStorage.setItem('logistics_order_notes', JSON.stringify(orderNotes));
-    }
-
-    function showError() {
-      document.getElementById('syncBadge').innerHTML = `<i class="fa-solid fa-circle-xmark text-red-400"></i> Sync Failed`;
-      document.getElementById('calendarMatrixContainer').innerHTML = `
-        <div class="bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center">
-          <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
-          <p class="font-bold">Gagal mengambil data dari Google Sheets!</p>
-        </div>`;
+    function cleanString(str) {
+      if (!str) return '';
+      return String(str).toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
     function normalizeDateString(dateStr) {
@@ -677,13 +407,94 @@
       return str;
     }
 
+    function fetchSheetData() {
+      const badge = document.getElementById('syncBadge');
+      badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
+
+      const fetchJadwal = new Promise(resolve => {
+        Papa.parse(CSV_JADWAL_URL, {
+          download: true, header: true, skipEmptyLines: true,
+          complete: res => resolve(res.data || []), error: () => resolve([])
+        });
+      });
+
+      const fetchOrders = new Promise(resolve => {
+        Papa.parse(CSV_ORDER_URL, {
+          download: true, header: true, skipEmptyLines: true,
+          complete: res => resolve(res.data || []), error: () => resolve([])
+        });
+      });
+
+      const fetchTambahan = new Promise(resolve => {
+        Papa.parse(CSV_TAMBAHAN_URL, {
+          download: true, header: true, skipEmptyLines: true,
+          complete: res => resolve(res.data || []), error: () => resolve([])
+        });
+      });
+
+      Promise.all([fetchJadwal, fetchOrders, fetchTambahan])
+        .then(([jadwalData, orderData, tambahanData]) => {
+          processOrderDetailsData(orderData);
+          processRawData(jadwalData, tambahanData);
+          renderOutstandingTable();
+
+          const now = new Date();
+          const timeStamp = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+          badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
+        })
+        .catch(() => showError());
+    }
+
+    function processOrderDetailsData(data) {
+      orderDetailsData = [];
+      data.forEach(item => {
+        const parsed = extractRowFields(item);
+        if (parsed.TanggalKirim || parsed.NamaCustomer) {
+          orderDetailsData.push(parsed);
+        }
+      });
+    }
+
+    function extractRowFields(item) {
+      const getVal = (keys) => {
+        for (let k of keys) {
+          if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+            return String(item[k]).trim();
+          }
+        }
+        return '';
+      };
+
+      const parseNum = (val) => {
+        if (!val) return 0;
+        const cleaned = String(val).replace(/[^0-9.-]/g, '');
+        return parseFloat(cleaned) || 0;
+      };
+
+      return {
+        TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
+        NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
+        TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
+        NoPO: getVal(['NO PO', 'PO Number']) || '-',
+        Status: getVal(['Status']) || '-',
+        Armada: getVal(['Armada']) || '-',
+        NamaBarang: getVal(['Product Name', 'Nama Barang', 'O']) || '-',
+        KodeBarang: getVal(['Product Code', 'Kode Barang', 'P']) || '-',
+        Unit: getVal(['Unit', 'Q']) || 'Pack',
+        Qty: parseNum(getVal(['Qty', 'R'])),
+        DeliveredQty: parseNum(getVal(['Delivered Qty', 'S'])),
+        OutstandingQty: parseNum(getVal(['Outstanding Qty', 'T'])),
+        Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
+      };
+    }
+
     function processRawData(jadwalData, tambahanData = []) {
       const parsedJadwal = jadwalData.map(item => parseRowItem(item));
       const parsedTambahan = tambahanData.map(item => parseRowItem(item));
 
       rawData = [...parsedJadwal, ...parsedTambahan].filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
 
-      datesList = Array.from(new Set(rawData.map(item => item.Tanggal)));
+      datesList = [...new Set(rawData.map(item => item.Tanggal))];
       populateFilters();
 
       if (datesList.length > 0) {
@@ -707,9 +518,12 @@
 
       const rawDokumen = item['Dokumen'] || item['Total Dokumen'] || item['Total dok'] || '1 Dok';
       const parsedDokumen = parseInt(String(rawDokumen).replace(/[^0-9]/g, '')) || 1;
-      const parsedBerat = parseInt(String(item['Total berat'] || item['Berat'] || '0').replace(/[^0-9]/g, '')) || 0;
-      const parsedCost = parseInt(String(item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0;
-      const parsedValue = parseInt(String(item['Value'] || '0').replace(/[^0-9]/g, '')) || 0;
+      const rawBerat = item['Total berat'] || item['Berat'] || '0';
+      const parsedBerat = parseInt(String(rawBerat).replace(/[^0-9]/g, '')) || 0;
+      const rawCost = item['Cost'] || '0';
+      const parsedCost = parseInt(String(rawCost).replace(/[^0-9]/g, '')) || 0;
+      const rawValue = item['Value'] || '0';
+      const parsedValue = parseInt(String(rawValue).replace(/[^0-9]/g, '')) || 0;
 
       let armadaName = (item['Armada'] || 'LAINNYA').trim().toUpperCase();
       if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
@@ -723,50 +537,212 @@
         TotalDokumen: parsedDokumen,
         TotalBerat: parsedBerat,
         Cost: parsedCost,
-        Value: parsedValue,
-        NoDokumenList: [String(rawDokumen)],
-        NoPOList: ['-']
+        Value: parsedValue
       };
     }
 
-    function extractRowFields(item) {
-      const getVal = (keys) => {
-        for (let i = 0; i < keys.length; i++) {
-          const k = keys[i];
-          if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
-            return String(item[k]).trim();
-          }
+    // PERBAIKAN LOGIKA STATUS OUTSTANDING
+    function renderOutstandingTable() {
+      const tbody = document.getElementById('outstandingTableBody');
+      const badgeCount = document.getElementById('outstandingBadgeCount');
+      if (!tbody || !badgeCount) return;
+
+      tbody.innerHTML = '';
+
+      // PERBAIKAN FILTER: Menangkap status "Belum Terkirim" & "Partial Fullfilment" dari Sheet
+      const outstandingItems = orderDetailsData.filter(item => {
+        const statusLower = item.Status.toLowerCase().trim();
+        const isBelumTerkirim = statusLower.includes('belum terkirim');
+        const isPartial = statusLower.includes('partial');
+        const isPending = statusLower.includes('pending');
+        const isOutstandingQty = item.OutstandingQty > 0;
+
+        return (isBelumTerkirim || isPartial || isPending || isOutstandingQty) && !statusLower.includes('closed') && !statusLower.includes('terkirim');
+      });
+
+      badgeCount.innerText = outstandingItems.length;
+
+      if (outstandingItems.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-6 text-center text-slate-400 font-medium">
+              <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-2 block"></i>
+              Tidak ada Outstanding PO (Belum Terkirim / Partial). Semua aman!
+            </td>
+          </tr>`;
+        return;
+      }
+
+      outstandingItems.forEach((row, idx) => {
+        const docKey = row.TransactionNumber || `DOC-${idx}`;
+        const currentNote = orderNotes[docKey] !== undefined ? orderNotes[docKey] : (row.Note || '');
+
+        const cleanCust = cleanString(row.NamaCustomer);
+        const matchedRaw = rawData.find(r => cleanString(r.Customer).includes(cleanCust) || cleanCust.includes(cleanString(r.Customer)));
+        const daerahText = matchedRaw ? matchedRaw.Daerah : '-';
+
+        let statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Belum Terkirim</span>`;
+        if (row.Status.toLowerCase().includes('partial')) {
+          statusBadge = `<span class="bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Partial Fulfillment</span>`;
         }
-        return '';
-      };
 
-      const parseNum = (val) => {
-        if (!val) return 0;
-        return parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
-      };
+        const safeCust = row.NamaCustomer.replace(/'/g, "\\'");
+        const safeTgl = row.TanggalKirim.replace(/'/g, "\\'");
+        const safeArmada = row.Armada.replace(/'/g, "\\'");
 
-      return {
-        TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
-        NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
-        TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
-        NoPO: getVal(['NO PO', 'PO Number']) || '-',
-        Status: getVal(['Status']) || '-',
-        Armada: getVal(['Armada']) || '-',
-        NamaBarang: getVal(['Product Name', 'Nama Barang', 'O']) || '-',
-        KodeBarang: getVal(['Product Code', 'Kode Barang', 'P']) || '-',
-        Unit: getVal(['Unit', 'Q']) || 'Pack',
-        Qty: parseNum(getVal(['Qty', 'R'])),
-        DeliveredQty: parseNum(getVal(['Delivered Qty', 'S'])),
-        OutstandingQty: parseNum(getVal(['Outstanding Qty', 'T'])),
-        Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
-      };
+        tbody.innerHTML += `
+          <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
+            <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
+            <td class="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">${row.TanggalKirim}</td>
+            <td class="py-2.5 px-3 font-bold text-indigo-950">${row.NamaCustomer}</td>
+            <td class="py-2.5 px-3 font-semibold text-slate-600">${daerahText}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-indigo-700 whitespace-nowrap cursor-pointer hover:underline" onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')">
+              <i class="fa-solid fa-file-invoice text-indigo-500 mr-1"></i> ${row.TransactionNumber}
+              <span class="block text-[10px] text-slate-400 font-sans font-normal">PO: ${row.NoPO}</span>
+            </td>
+            <td class="py-2.5 px-3 text-center">${statusBadge}</td>
+            <td class="py-2.5 px-3 text-center font-black text-rose-600">${row.OutstandingQty.toLocaleString('id-ID')} ${row.Unit}</td>
+            <td class="py-2.5 px-3">
+              <input 
+                type="text" 
+                value="${currentNote}" 
+                placeholder="Tambah catatan lokal..." 
+                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500" 
+                onchange="saveNote('${docKey}', this.value)"
+              />
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <button onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition shadow-2xs flex items-center gap-1 mx-auto">
+                <i class="fa-solid fa-eye"></i> Detail
+              </button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    // PERBAIKAN LOGIKA OPEN POPUP MODAL (FUZZY MATCHING NAMA & TANGGAL)
+    function openDocumentModal(customerName, tanggalStr, armadaName) {
+      const modal = document.getElementById('documentModal');
+      const modalLoading = document.getElementById('modalLoading');
+      const modalContent = document.getElementById('modalContent');
+
+      document.getElementById('modalCustomerName').innerText = customerName;
+      document.getElementById('modalSubTitle').innerText = `Jadwal Kirim: ${tanggalStr} | Armada: ${armadaName}`;
+
+      modal.classList.remove('hidden');
+      modalLoading.classList.remove('hidden');
+      modalContent.classList.add('hidden');
+
+      setTimeout(() => {
+        const cleanTargetCust = cleanString(customerName);
+        const normTargetDate = normalizeDateString(tanggalStr);
+
+        // Match fleksibel: nama customer mirip dan tanggal sama (atau tanpa tanggal jika cocok unik)
+        let matchedItems = orderDetailsData.filter(item => {
+          const cleanItemCust = cleanString(item.NamaCustomer);
+          const custMatch = cleanItemCust.includes(cleanTargetCust) || cleanTargetCust.includes(cleanItemCust);
+          
+          const itemDate = normalizeDateString(item.TanggalKirim);
+          const dateMatch = !normTargetDate || !itemDate || (itemDate === normTargetDate);
+
+          return custMatch && dateMatch;
+        });
+
+        // Fallback jika tanggal berbeda format: cari hanya berdasarkan Customer
+        if (matchedItems.length === 0) {
+          matchedItems = orderDetailsData.filter(item => {
+            const cleanItemCust = cleanString(item.NamaCustomer);
+            return cleanItemCust.includes(cleanTargetCust) || cleanTargetCust.includes(cleanItemCust);
+          });
+        }
+
+        renderModalTable(matchedItems);
+        modalLoading.classList.add('hidden');
+        modalContent.classList.remove('hidden');
+      }, 50);
+    }
+
+    function renderModalTable(items) {
+      const tbody = document.getElementById('modalTableBody');
+      tbody.innerHTML = '';
+
+      if (items.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="py-8 text-center text-slate-400 font-medium">
+              <i class="fa-solid fa-file-excel text-2xl mb-2 text-slate-300 block"></i>
+              Tidak ada rincian item barang yang ditemukan di Sheet INPUT ORDER untuk tanggal dan customer ini.
+            </td>
+          </tr>`;
+        document.getElementById('modalDocCountBadge').innerText = 0;
+        document.getElementById('modalTotalQtyBadge').innerText = 0;
+        document.getElementById('modalTotalDeliveredBadge').innerText = 0;
+        document.getElementById('modalTotalOutstandingBadge').innerText = 0;
+        return;
+      }
+
+      const docNums = [...new Set(items.map(i => i.TransactionNumber).filter(Boolean))];
+      const totalQty = items.reduce((sum, i) => sum + i.Qty, 0);
+      const totalDelivered = items.reduce((sum, i) => sum + i.DeliveredQty, 0);
+      const totalOutstanding = items.reduce((sum, i) => sum + i.OutstandingQty, 0);
+
+      document.getElementById('modalDocCountBadge').innerText = docNums.length || items.length;
+      document.getElementById('modalTotalQtyBadge').innerText = totalQty.toLocaleString('id-ID');
+      document.getElementById('modalTotalDeliveredBadge').innerText = totalDelivered.toLocaleString('id-ID');
+      document.getElementById('modalTotalOutstandingBadge').innerText = totalOutstanding.toLocaleString('id-ID');
+
+      items.forEach((row, idx) => {
+        let statusColor = 'bg-slate-100 text-slate-700';
+        const st = row.Status.toLowerCase();
+        if (st.includes('terkirim') || st.includes('closed') || st.includes('done')) {
+          statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        } else if (st.includes('partial') || st.includes('belum')) {
+          statusColor = 'bg-rose-100 text-rose-800 border border-rose-200';
+        }
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
+            <td class="py-3 px-3 font-mono font-bold text-indigo-900 whitespace-nowrap">${row.TransactionNumber}</td>
+            <td class="py-3 px-3 font-mono text-slate-600">${row.NoPO}</td>
+            <td class="py-3 px-3 font-mono text-slate-500">${row.KodeBarang}</td>
+            <td class="py-3 px-3 font-semibold text-slate-800">${row.NamaBarang}</td>
+            <td class="py-3 px-3 text-center font-bold text-slate-500">${row.Unit}</td>
+            <td class="py-3 px-3 text-center font-bold text-slate-800">${row.Qty.toLocaleString('id-ID')}</td>
+            <td class="py-3 px-3 text-center font-bold text-emerald-600">${row.DeliveredQty.toLocaleString('id-ID')}</td>
+            <td class="py-3 px-3 text-center font-bold ${row.OutstandingQty > 0 ? 'text-rose-600' : 'text-slate-400'}">${row.OutstandingQty.toLocaleString('id-ID')}</td>
+            <td class="py-3 px-3 text-center">
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block ${statusColor}">
+                ${row.Status}
+              </span>
+            </td>
+          </tr>`;
+      });
+    }
+
+    function closeDocumentModal() {
+      document.getElementById('documentModal').classList.add('hidden');
+    }
+
+    function saveNote(docKey, noteText) {
+      orderNotes[docKey] = noteText;
+      localStorage.setItem('logistics_order_notes', JSON.stringify(orderNotes));
+    }
+
+    function toggleOutstandingSection() {
+      const content = document.getElementById('outstandingContent');
+      const icon = document.getElementById('outstandingArrowIcon');
+      content.classList.toggle('hidden');
+      icon.classList.toggle('rotate-180');
+    }
+
+    function showError() {
+      document.getElementById('syncBadge').innerHTML = `<i class="fa-solid fa-circle-xmark text-red-400"></i> Sync Failed`;
     }
 
     function toggleArmadaDetails(detailsId) {
       const el = document.getElementById(detailsId);
-      if (el) {
-        el.classList.toggle('hidden');
-      }
+      if (el) el.classList.toggle('hidden');
     }
 
     function renderCalendarDashboard() {
@@ -775,24 +751,19 @@
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
 
       calendarContainer.innerHTML = '';
-
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       
       const dataByDate = {};
-      for (let i = 0; i < rawData.length; i++) {
-        const item = rawData[i];
+      rawData.forEach(item => {
         if (item.ISODate) {
-          const parts = item.ISODate.split('-');
-          const itemYear = parseInt(parts[0]);
-          const itemMonth = parseInt(parts[1]) - 1;
-          
-          if (itemMonth === selectedMonth && itemYear === selectedYear) {
-            const dateNum = parseInt(parts[2]);
+          const d = new Date(item.ISODate);
+          if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) {
+            const dateNum = d.getDate();
             if (!dataByDate[dateNum]) dataByDate[dateNum] = [];
             dataByDate[dateNum].push(item);
           }
         }
-      }
+      });
 
       let weeks = [];
       let currentWeek = [];
@@ -800,14 +771,7 @@
       for (let day = 1; day <= daysInMonth; day++) {
         const dateObj = new Date(selectedYear, selectedMonth, day);
         let dayOfWeek = dateObj.getDay(); 
-        
-        currentWeek.push({
-          dayNumber: day,
-          dateObj: dateObj,
-          dayOfWeek: dayOfWeek,
-          items: dataByDate[day] || []
-        });
-
+        currentWeek.push({ dayNumber: day, dateObj: dateObj, dayOfWeek: dayOfWeek, items: dataByDate[day] || [] });
         if (dayOfWeek === 0 || day === daysInMonth) {
           weeks.push(currentWeek);
           currentWeek = [];
@@ -891,9 +855,6 @@
                         <span class="text-indigo-950 font-extrabold text-[10px] whitespace-nowrap">
                           ${totalBeratArmada > 0 ? totalBeratArmada.toLocaleString('id-ID') + ' gr' : '0 gr'}
                         </span>
-                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-xs font-black text-[9px] flex-shrink-0">
-                          <i class="fa-solid fa-plus"></i>
-                        </button>
                       </div>
                     </div>
 
@@ -909,32 +870,9 @@
                               <th class="py-1.5 px-2 text-right">Value</th>
                             </tr>
                           </thead>
-                          <tbody>
-                            ${customerListRows}
-                          </tbody>
+                          <tbody>${customerListRows}</tbody>
                         </table>
                       </div>
-                      <div class="p-1.5 bg-slate-50 border-t border-slate-100 flex justify-end">
-                        <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="text-[10px] font-bold text-indigo-900 bg-amber-400 hover:bg-amber-500 px-2 py-0.5 rounded transition flex items-center gap-1 shadow-2xs">
-                          <i class="fa-solid fa-plus"></i> Add
-                        </button>
-                      </div>
-                    </div>
-                  </div>`;
-
-              } else {
-                armadaListHtml += `
-                  <div class="mb-2 bg-white/60 rounded-lg border border-slate-200/60 px-2.5 py-1.5 flex justify-between items-center text-xs">
-                    <div class="flex items-center space-x-1.5 text-slate-400 whitespace-nowrap">
-                      <i class="fa-solid fa-chevron-right text-[9px] flex-shrink-0"></i>
-                      <i class="fa-solid fa-truck text-[11px] flex-shrink-0"></i>
-                      <span class="font-bold uppercase text-[10px] text-slate-400">${armName}</span>
-                    </div>
-                    <div class="flex items-center space-x-1.5 flex-shrink-0">
-                      <span class="italic text-[10px] text-slate-300">Kosong</span>
-                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-50 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-2xs font-black text-[9px] flex-shrink-0">
-                        <i class="fa-solid fa-plus"></i>
-                      </button>
                     </div>
                   </div>`;
               }
@@ -944,20 +882,11 @@
               <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex-none w-[280px]">
                 <div>
                   <div class="bg-indigo-950 text-white px-2.5 py-1.5 rounded-lg flex justify-between items-center mb-2.5">
-                    <span class="text-[11px] font-black tracking-wider text-amber-400">
-                      ${dayNamesHeader[dayIndex - 1]}
-                    </span>
-                    <span class="bg-indigo-900 text-indigo-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border border-indigo-700">
-                      ${dateStrFormatted}
-                    </span>
+                    <span class="text-[11px] font-black tracking-wider text-amber-400">${dayNamesHeader[dayIndex - 1]}</span>
+                    <span class="bg-indigo-900 text-indigo-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border border-indigo-700">${dateStrFormatted}</span>
                   </div>
                   ${armadaListHtml}
                 </div>
-              </div>`;
-          } else {
-            dayColsHtml += `
-              <div class="bg-slate-100/30 rounded-xl border border-dashed border-slate-200 p-3 opacity-40 flex-none w-[280px]">
-                <div class="text-[10px] font-bold text-slate-400 text-center">${dayNamesHeader[dayIndex - 1]}</div>
               </div>`;
           }
         }
@@ -967,9 +896,7 @@
             <div class="mb-2.5 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200/60 pb-2">
               <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${weekNum}
             </div>
-            <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin">
-              ${dayColsHtml}
-            </div>
+            <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin">${dayColsHtml}</div>
           </div>`;
 
         calendarContainer.insertAdjacentHTML('beforeend', weekHtml);
@@ -977,26 +904,20 @@
     }
 
     function populateFilters() {
-      const armadas = Array.from(new Set(rawData.map(item => item.Armada)));
-      const daerahs = Array.from(new Set(rawData.map(item => item.Daerah)));
+      const armadas = [...new Set(rawData.map(item => item.Armada))];
+      const daerahs = [...new Set(rawData.map(item => item.Daerah))];
 
       const armadaSelect = document.getElementById('armadaFilter');
       armadaSelect.innerHTML = '<option value="ALL">Semua Armada</option>';
-      armadas.forEach(arm => {
-        if (arm) armadaSelect.innerHTML += `<option value="${arm}">${arm}</option>`;
-      });
+      armadas.forEach(arm => { if (arm) armadaSelect.innerHTML += `<option value="${arm}">${arm}</option>`; });
 
       const daerahSelect = document.getElementById('daerahFilter');
       daerahSelect.innerHTML = '<option value="ALL">Semua Daerah</option>';
-      daerahs.forEach(daerah => {
-        if (daerah && daerah !== '-') daerahSelect.innerHTML += `<option value="${daerah}">${daerah}</option>`;
-      });
+      daerahs.forEach(daerah => { if (daerah && daerah !== '-') daerahSelect.innerHTML += `<option value="${daerah}">${daerah}</option>`; });
 
       const dateSelect = document.getElementById('dateSelect');
       dateSelect.innerHTML = '';
-      datesList.forEach((date, idx) => {
-        dateSelect.innerHTML += `<option value="${idx}">${date}</option>`;
-      });
+      datesList.forEach((date, idx) => { dateSelect.innerHTML += `<option value="${idx}">${date}</option>`; });
     }
 
     function slideDate(direction) {
@@ -1021,14 +942,7 @@
       const endDate = document.getElementById('endDateInput').value;
 
       return rawData.filter(item => {
-        const docMatch = item.NoDokumenList.some(doc => doc.toLowerCase().includes(search));
-        const poMatch = item.NoPOList.some(po => po.toLowerCase().includes(search));
-        const searchMatch = !search || 
-          item.Customer.toLowerCase().includes(search) || 
-          item.Daerah.toLowerCase().includes(search) || 
-          item.Armada.toLowerCase().includes(search) ||
-          docMatch || poMatch;
-
+        const searchMatch = !search || item.Customer.toLowerCase().includes(search) || item.Daerah.toLowerCase().includes(search) || item.Armada.toLowerCase().includes(search);
         const armadaMatch = selectedArmada === 'ALL' || item.Armada === selectedArmada;
         const daerahMatch = selectedDaerah === 'ALL' || item.Daerah === selectedDaerah;
 
@@ -1043,34 +957,14 @@
             dateMatch = false;
           }
         } else {
-          if (datesList.length > 0) {
-            dateMatch = item.Tanggal === datesList[currentDateIndex];
-          }
+          if (datesList.length > 0) dateMatch = item.Tanggal === datesList[currentDateIndex];
         }
 
         return searchMatch && armadaMatch && daerahMatch && dateMatch;
       });
     }
 
-    function debounceApplyFilters() {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        applyFilters();
-      }, 200);
-    }
-
     function applyFilters() {
-      const search = document.getElementById('searchInput').value.trim();
-      const startDate = document.getElementById('startDateInput').value;
-      const endDate = document.getElementById('endDateInput').value;
-      const nav = document.getElementById('dateNavigator');
-
-      if (search || startDate || endDate) {
-        nav.classList.add('opacity-50', 'pointer-events-none');
-      } else {
-        nav.classList.remove('opacity-50', 'pointer-events-none');
-      }
-
       renderDashboard();
     }
 
@@ -1080,7 +974,6 @@
       document.getElementById('daerahFilter').value = 'ALL';
       document.getElementById('startDateInput').value = '';
       document.getElementById('endDateInput').value = '';
-      document.getElementById('dateNavigator').classList.remove('opacity-50', 'pointer-events-none');
       renderDashboard();
     }
 
@@ -1088,17 +981,9 @@
       const search = document.getElementById('searchInput').value.trim();
       const filteredData = getFilteredData();
       const container = document.getElementById('armadaContainer');
-      const startDate = document.getElementById('startDateInput').value;
-      const endDate = document.getElementById('endDateInput').value;
 
-      if (search) {
-        document.getElementById('currentDateDisplay').innerText = `Hasil Cari: "${search}" (${filteredData.length} Data)`;
-      } else if (startDate || endDate) {
-        document.getElementById('currentDateDisplay').innerText = `Rentang: ${startDate || 'Awal'} s/d ${endDate || 'Akhir'}`;
-      } else if (datesList.length > 0) {
+      if (datesList.length > 0) {
         document.getElementById('currentDateDisplay').innerText = datesList[currentDateIndex] || 'N/A';
-      } else {
-        document.getElementById('currentDateDisplay').innerText = 'Tidak Ada Data';
       }
 
       updateMetrics(filteredData);
@@ -1108,7 +993,7 @@
         container.innerHTML = `
           <div class="bg-white rounded-xl p-8 text-center text-slate-500 border border-slate-200 shadow-sm">
             <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
-            <p class="font-bold">Tidak ada data pengiriman yang cocok dengan filter.</p>
+            <p class="font-bold">Tidak ada data pengiriman yang cocok.</p>
           </div>`;
         return;
       }
@@ -1119,42 +1004,23 @@
         groupedByArmada[item.Armada].push(item);
       });
 
-      let fullCardsHtml = '';
       Object.keys(groupedByArmada).forEach(armadaName => {
         const items = groupedByArmada[armadaName];
-        let totalBerat = 0, totalDok = 0, totalCost = 0, totalVal = 0;
+        const totalBerat = items.reduce((sum, i) => sum + i.TotalBerat, 0);
+        const totalDok = items.reduce((sum, i) => sum + i.TotalDokumen, 0);
+        const totalCost = items.reduce((sum, i) => sum + i.Cost, 0);
+        const totalVal = items.reduce((sum, i) => sum + i.Value, 0);
 
         let tableRows = '';
         items.forEach((row, idx) => {
-          totalBerat += row.TotalBerat;
-          totalDok += row.TotalDokumen;
-          totalCost += row.Cost;
-          totalVal += row.Value;
-
           const safeCust = row.Customer.replace(/'/g, "\\'");
           const safeTgl = row.Tanggal.replace(/'/g, "\\'");
           const safeArmada = row.Armada.replace(/'/g, "\\'");
 
-          const docBadges = row.NoDokumenList.length > 0 
-            ? row.NoDokumenList.map(doc => `<span class="inline-block bg-indigo-50 border border-indigo-200 text-indigo-900 px-2 py-0.5 rounded text-[11px] font-mono font-bold mr-1 mb-1">${doc}</span>`).join('')
-            : `<span class="text-slate-400 italic text-xs">1 Dok</span>`;
-
-          const poBadges = row.NoPOList.length > 0
-            ? row.NoPOList.map(po => `<span class="inline-block bg-slate-100 border border-slate-300 text-slate-800 px-2 py-0.5 rounded text-[11px] font-mono font-semibold mr-1 mb-1">${po}</span>`).join('')
-            : `<span class="text-slate-400 italic text-xs">-</span>`;
-
           tableRows += `
-            <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-50/60 transition cursor-pointer group">
+            <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-50/60 transition cursor-pointer group border-b border-slate-100">
               <td class="py-3.5 px-4 text-center text-slate-400 font-medium">${idx + 1}</td>
-              <td class="py-3.5 px-4 font-bold text-indigo-900 group-hover:text-indigo-600 transition flex items-center justify-between">
-                <div>
-                  <div>${row.Customer}</div>
-                  <div class="text-[10px] font-semibold text-slate-400">${row.Tanggal}</div>
-                </div>
-                <i class="fa-solid fa-chevron-right text-xs text-indigo-400 opacity-0 group-hover:opacity-100 transition"></i>
-              </td>
-              <td class="py-3.5 px-4">${docBadges}</td>
-              <td class="py-3.5 px-4">${poBadges}</td>
+              <td class="py-3.5 px-4 font-bold text-indigo-900 group-hover:text-indigo-600 transition">${row.Customer}</td>
               <td class="py-3.5 px-4"><span class="bg-slate-100 px-2.5 py-1 rounded-md font-semibold text-slate-700">${row.Daerah}</span></td>
               <td class="py-3.5 px-4 text-center font-bold text-slate-800">${row.TotalDokumen}</td>
               <td class="py-3.5 px-4 text-right font-bold text-slate-700">${row.TotalBerat.toLocaleString('id-ID')} gr</td>
@@ -1163,7 +1029,7 @@
             </tr>`;
         });
 
-        fullCardsHtml += `
+        const cardHtml = `
           <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
             <div class="bg-indigo-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
               <div class="flex items-center space-x-3">
@@ -1178,8 +1044,6 @@
               <div class="flex flex-wrap items-center gap-3 text-xs">
                 <span class="bg-indigo-800 border border-indigo-700 px-3 py-1.5 rounded-lg font-bold">Dokumen: <span class="text-amber-300">${totalDok}</span></span>
                 <span class="bg-indigo-800 border border-indigo-700 px-3 py-1.5 rounded-lg font-bold">Berat: <span class="text-amber-300">${totalBerat.toLocaleString('id-ID')} gr</span></span>
-                <span class="bg-indigo-800 border border-indigo-700 px-3 py-1.5 rounded-lg font-bold">Cost: <span class="text-emerald-300">Rp ${totalCost.toLocaleString('id-ID')}</span></span>
-                <span class="bg-indigo-800 border border-indigo-700 px-3 py-1.5 rounded-lg font-bold">Value: <span class="text-purple-300">Rp ${totalVal.toLocaleString('id-ID')}</span></span>
               </div>
             </div>
             <div class="overflow-x-auto">
@@ -1187,9 +1051,7 @@
                 <thead class="bg-slate-100 text-slate-500 uppercase text-[11px] font-extrabold border-b border-slate-200">
                   <tr>
                     <th class="py-3 px-4 text-center w-12">No</th>
-                    <th class="py-3 px-4 min-w-[180px]">Customer / Tanggal</th>
-                    <th class="py-3 px-4 min-w-[200px]">No Dokumen</th>
-                    <th class="py-3 px-4 min-w-[180px]">No PO / Ket</th>
+                    <th class="py-3 px-4">Customer</th>
                     <th class="py-3 px-4">Daerah</th>
                     <th class="py-3 px-4 text-center">Total Dok</th>
                     <th class="py-3 px-4 text-right">Total Berat</th>
@@ -1197,281 +1059,38 @@
                     <th class="py-3 px-4 text-right">Value</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
-                  ${tableRows}
-                </tbody>
+                <tbody>${tableRows}</tbody>
               </table>
             </div>
           </div>`;
-      });
 
-      container.innerHTML = fullCardsHtml;
+        container.insertAdjacentHTML('beforeend', cardHtml);
+      });
     }
 
     function updateMetrics(data) {
-      let totalPengiriman = data.length;
-      let totalDokumen = 0, totalBerat = 0, totalCost = 0, totalValue = 0;
-
-      for (let i = 0; i < data.length; i++) {
-        totalDokumen += data[i].TotalDokumen;
-        totalBerat += data[i].TotalBerat;
-        totalCost += data[i].Cost;
-        totalValue += data[i].Value;
-      }
-
-      document.getElementById('metricPengiriman').innerText = totalPengiriman;
-      document.getElementById('metricDokumen').innerText = totalDokumen;
-      document.getElementById('metricBerat').innerText = `${totalBerat.toLocaleString('id-ID')} gr`;
-      document.getElementById('metricCost').innerText = `Rp ${totalCost.toLocaleString('id-ID')}`;
-      document.getElementById('metricValue').innerText = `Rp ${totalValue.toLocaleString('id-ID')}`;
-    }
-
-    function openDocumentModal(customerName, tanggalStr, armadaName) {
-      const modal = document.getElementById('documentModal');
-      const modalLoading = document.getElementById('modalLoading');
-      const modalContent = document.getElementById('modalContent');
-
-      document.getElementById('modalCustomerName').innerText = customerName;
-      document.getElementById('modalSubTitle').innerText = `Jadwal Kirim: ${tanggalStr} | Armada: ${armadaName}`;
-
-      modal.classList.remove('hidden');
-      modalLoading.classList.remove('hidden');
-      modalContent.classList.add('hidden');
-
-      setTimeout(() => {
-        const cleanTargetCust = customerName.toLowerCase().trim();
-        const normTargetDate = tanggalStr;
-        const key = `${cleanTargetCust}_${normTargetDate}`;
-
-        let matchedItems = orderMapByCustDate.get(key) || [];
-
-        if (matchedItems.length === 0) {
-          matchedItems = orderDetailsData.filter(item => {
-            const custMatch = item.NamaCustomer.toLowerCase().includes(cleanTargetCust) || cleanTargetCust.includes(item.NamaCustomer.toLowerCase());
-            return custMatch && (item.TanggalKirim === normTargetDate);
-          });
-        }
-
-        renderModalTable(matchedItems);
-        modalLoading.classList.add('hidden');
-        modalContent.classList.remove('hidden');
-      }, 20);
-    }
-
-    function closeDocumentModal() {
-      document.getElementById('documentModal').classList.add('hidden');
-    }
-
-    function renderModalTable(items) {
-      const tbody = document.getElementById('modalTableBody');
-      tbody.innerHTML = '';
-
-      if (items.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="10" class="py-8 text-center text-slate-400 font-medium">
-              <i class="fa-solid fa-file-excel text-2xl mb-2 text-slate-300 block"></i>
-              Tidak ada rincian item barang yang ditemukan di Sheet INPUT ORDER untuk tanggal dan customer ini.
-            </td>
-          </tr>`;
-        document.getElementById('modalDocCountBadge').innerText = 0;
-        document.getElementById('modalTotalQtyBadge').innerText = 0;
-        document.getElementById('modalTotalDeliveredBadge').innerText = 0;
-        document.getElementById('modalTotalOutstandingBadge').innerText = 0;
-        return;
-      }
-
-      const docNums = Array.from(new Set(items.map(i => i.TransactionNumber)));
-      let totalQty = 0, totalDelivered = 0, totalOutstanding = 0;
-
-      let rowsHtml = '';
-      items.forEach((row, idx) => {
-        totalQty += row.Qty;
-        totalDelivered += row.DeliveredQty;
-        totalOutstanding += row.OutstandingQty;
-
-        let statusColor = 'bg-slate-100 text-slate-700';
-        const st = row.Status.toLowerCase();
-        if (st.includes('delivered') || st.includes('done') || st.includes('selesai')) {
-          statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-        } else if (st.includes('process') || st.includes('pending')) {
-          statusColor = 'bg-amber-100 text-amber-800 border border-amber-200';
-        }
-
-        rowsHtml += `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
-            <td class="py-3 px-3 font-mono font-bold text-indigo-900 whitespace-nowrap">${row.TransactionNumber}</td>
-            <td class="py-3 px-3 font-mono text-slate-600">${row.NoPO}</td>
-            <td class="py-3 px-3 font-mono text-slate-500">${row.KodeBarang}</td>
-            <td class="py-3 px-3 font-semibold text-slate-800">${row.NamaBarang}</td>
-            <td class="py-3 px-3 text-center font-bold text-slate-500">${row.Unit}</td>
-            <td class="py-3 px-3 text-center font-bold text-slate-800">${row.Qty.toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3 text-center font-bold text-emerald-600">${row.DeliveredQty.toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3 text-center font-bold ${row.OutstandingQty > 0 ? 'text-rose-600' : 'text-slate-400'}">${row.OutstandingQty.toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3 text-center">
-              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block ${statusColor}">
-                ${row.Status}
-              </span>
-            </td>
-          </tr>`;
-      });
-
-      document.getElementById('modalDocCountBadge').innerText = docNums.length;
-      document.getElementById('modalTotalQtyBadge').innerText = totalQty.toLocaleString('id-ID');
-      document.getElementById('modalTotalDeliveredBadge').innerText = totalDelivered.toLocaleString('id-ID');
-      document.getElementById('modalTotalOutstandingBadge').innerText = totalOutstanding.toLocaleString('id-ID');
-      tbody.innerHTML = rowsHtml;
-    }
-
-    function openAddRoutingModal(armadaName, dateFormatted) {
-      document.getElementById('addArmadaTarget').value = armadaName;
-      document.getElementById('addDateTarget').value = dateFormatted || '';
-      document.getElementById('addRoutingModal').classList.remove('hidden');
-      document.getElementById('addCustomer').value = '';
-      document.getElementById('addDaerah').value = '';
-      document.getElementById('addDokumen').value = '1 Dok';
-      document.getElementById('addCost').value = '';
-      document.getElementById('addValue').value = '';
-      
-      const statusDiv = document.getElementById('addSubmitStatus');
-      statusDiv.classList.add('hidden');
-      statusDiv.className = 'text-xs font-bold text-center py-1 hidden';
-    }
-
-    function closeAddRoutingModal() {
-      document.getElementById('addRoutingModal').classList.add('hidden');
-    }
-
-    function submitTambahanRouting(event) {
-      event.preventDefault();
-      
-      const btn = document.getElementById('btnSubmitRouting');
-      const statusDiv = document.getElementById('addSubmitStatus');
-
-      const customer = document.getElementById('addCustomer').value.trim();
-      const daerah = document.getElementById('addDaerah').value.trim() || '-';
-      const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
-      const cost = parseInt(document.getElementById('addCost').value) || 0;
-      const value = parseInt(document.getElementById('addValue').value) || 0;
-      let armadaTarget = (document.getElementById('addArmadaTarget').value || 'NINJA').toUpperCase();
-      if (armadaTarget === 'GRAND MAX') armadaTarget = 'GRANMAX';
-      
-      const targetDate = document.getElementById('addDateTarget').value || '';
-
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
-
-      let parsedISO = null;
-      if (targetDate) {
-        const parts = targetDate.split('-');
-        if (parts.length === 3) {
-          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-
-      const newItem = {
-        Tanggal: targetDate,
-        ISODate: parsedISO,
-        Customer: customer,
-        Armada: armadaTarget,
-        Daerah: daerah,
-        TotalDokumen: parseInt(dokumen.replace(/[^0-9]/g, '')) || 1,
-        TotalBerat: 0,
-        Cost: cost,
-        Value: value,
-        NoDokumenList: [dokumen],
-        NoPOList: ['-']
-      };
-
-      rawData.push(newItem);
-      renderDashboard();
-      renderCalendarDashboard();
-
-      const targetUrl = new URL(WEBHOOK_API_URL);
-      targetUrl.searchParams.append('Tanggal', targetDate);
-      targetUrl.searchParams.append('Customer', customer);
-      targetUrl.searchParams.append('Armada', armadaTarget);
-      targetUrl.searchParams.append('Daerah', daerah);
-      targetUrl.searchParams.append('Dokumen', dokumen);
-      targetUrl.searchParams.append('Cost', cost);
-      targetUrl.searchParams.append('Value', value);
-
-      fetch(targetUrl.toString(), {
-        method: 'POST',
-        mode: 'no-cors'
-      })
-      .then(() => {
-        statusDiv.innerText = '✓ Routing berhasil disimpan ke Google Sheets!';
-        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
-        setTimeout(() => {
-          closeAddRoutingModal();
-          btn.disabled = false;
-          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
-        }, 800);
-      })
-      .catch(err => {
-        console.error("Error saving:", err);
-        statusDiv.innerText = '✓ Routing tersimpan!';
-        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
-        setTimeout(() => {
-          closeAddRoutingModal();
-          btn.disabled = false;
-          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
-        }, 800);
-      });
-    }
-
-    function getExportData() {
-      return getFilteredData().map((item, idx) => ({
-        "No": idx + 1,
-        "Tanggal": item.Tanggal,
-        "Customer": item.Customer,
-        "Armada": item.Armada,
-        "Daerah": item.Daerah,
-        "No Dokumen List": item.NoDokumenList.join(', '),
-        "No PO List": item.NoPOList.join(', '),
-        "Total Dokumen": item.TotalDokumen,
-        "Total Berat (gr)": item.TotalBerat,
-        "Cost (Rp)": item.Cost,
-        "Value Barang (Rp)": item.Value
-      }));
+      document.getElementById('metricPengiriman').innerText = data.length;
+      document.getElementById('metricDokumen').innerText = data.reduce((sum, i) => sum + i.TotalDokumen, 0);
+      document.getElementById('metricBerat').innerText = `${data.reduce((sum, i) => sum + i.TotalBerat, 0).toLocaleString('id-ID')} gr`;
+      document.getElementById('metricCost').innerText = `Rp ${data.reduce((sum, i) => sum + i.Cost, 0).toLocaleString('id-ID')}`;
+      document.getElementById('metricValue').innerText = `Rp ${data.reduce((sum, i) => sum + i.Value, 0).toLocaleString('id-ID')}`;
     }
 
     function downloadCSV() {
-      const data = getExportData();
-      if (data.length === 0) return alert('Tidak ada data untuk diunduh!');
-
+      const data = getFilteredData();
+      if (data.length === 0) return alert('Tidak ada data!');
       const csv = Papa.unparse(data);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `Laporan_Jadwal_Logistik_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute('download', `Laporan_Logistik_${new Date().toISOString().slice(0, 10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
     function downloadExcel() {
-      const data = getExportData();
-      if (data.length === 0) return alert('Tidak ada data untuk diunduh!');
-
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-      const headers = Object.keys(data[0]).join("\t");
-      csvContent += headers + "\n";
-
-      data.forEach(row => {
-        const rowStr = Object.values(row).join("\t");
-        csvContent += rowStr + "\n";
-      });
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement('a');
-      link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `Laporan_Jadwal_Logistik_${new Date().toISOString().slice(0, 10)}.xls`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadCSV();
     }
 
     function printReport() {
