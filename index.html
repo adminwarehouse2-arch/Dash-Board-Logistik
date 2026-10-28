@@ -161,7 +161,7 @@
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer / No Dokumen</label>
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
-              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah, No Dokumen, atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" id="searchInput" oninput="debounceApplyFilters()" placeholder="Ketik customer, daerah, No Dokumen, atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
 
@@ -424,6 +424,7 @@
     let orderMapByCustDate = new Map(); 
     let datesList = [];
     let currentDateIndex = 0;
+    let debounceTimer = null;
 
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
 
@@ -469,21 +470,21 @@
 
       const fetchJadwal = new Promise(resolve => {
         Papa.parse(CSV_JADWAL_URL, {
-          download: true, header: true, skipEmptyLines: true,
+          download: true, header: true, skipEmptyLines: true, fastMode: true,
           complete: res => resolve(res.data || []), error: () => resolve([])
         });
       });
 
       const fetchOrders = new Promise(resolve => {
         Papa.parse(CSV_ORDER_URL, {
-          download: true, header: true, skipEmptyLines: true,
+          download: true, header: true, skipEmptyLines: true, fastMode: true,
           complete: res => resolve(res.data || []), error: () => resolve([])
         });
       });
 
       const fetchTambahan = new Promise(resolve => {
         Papa.parse(CSV_TAMBAHAN_URL, {
-          download: true, header: true, skipEmptyLines: true,
+          download: true, header: true, skipEmptyLines: true, fastMode: true,
           complete: res => resolve(res.data || []), error: () => resolve([])
         });
       });
@@ -507,56 +508,56 @@
       orderMapByCustDate.clear();
       orderDetailsData = [];
 
-      data.forEach(item => {
-        const parsed = extractRowFields(item);
-        if (!parsed.TanggalKirim || !parsed.NamaCustomer) return;
+      for (let i = 0; i < data.length; i++) {
+        const parsed = extractRowFields(data[i]);
+        if (!parsed.TanggalKirim || !parsed.NamaCustomer) continue;
 
         orderDetailsData.push(parsed);
 
         const cleanCust = parsed.NamaCustomer.toLowerCase().trim();
         const key = `${cleanCust}_${parsed.TanggalKirim}`;
 
-        if (!orderMapByCustDate.has(key)) {
-          orderMapByCustDate.set(key, []);
+        let arr = orderMapByCustDate.get(key);
+        if (!arr) {
+          arr = [];
+          orderMapByCustDate.set(key, arr);
         }
-        orderMapByCustDate.get(key).push(parsed);
-      });
+        arr.push(parsed);
+      }
     }
 
     function mapOrderDocsFast() {
       if (!rawData || rawData.length === 0) return;
 
-      rawData.forEach(row => {
+      for (let i = 0; i < rawData.length; i++) {
+        const row = rawData[i];
         const cleanCust = row.Customer.toLowerCase().trim();
         const key = `${cleanCust}_${row.Tanggal}`;
         
-        let matched = orderMapByCustDate.get(key) || [];
-
-        if (matched.length === 0) {
-          for (let [mapKey, items] of orderMapByCustDate.entries()) {
-            if (mapKey.endsWith(`_${row.Tanggal}`)) {
-              const custInMap = mapKey.split('_')[0];
-              if (custInMap.includes(cleanCust) || cleanCust.includes(custInMap)) {
-                matched = matched.concat(items);
-              }
-            }
-          }
+        let matched = orderMapByCustDate.get(key);
+        if (!matched) {
+          matched = [];
         }
 
-        const docNums = matched.map(d => d.TransactionNumber).filter(Boolean);
-        const poNums = matched.map(d => d.NoPO).filter(Boolean);
+        const docNums = [];
+        const poNums = [];
+        
+        for (let j = 0; j < matched.length; j++) {
+          if (matched[j].TransactionNumber) docNums.push(matched[j].TransactionNumber);
+          if (matched[j].NoPO) poNums.push(matched[j].NoPO);
+        }
         
         if (docNums.length > 0) {
-          row.NoDokumenList = [...new Set([...row.NoDokumenList, ...docNums])];
+          row.NoDokumenList = Array.from(new Set([...row.NoDokumenList, ...docNums]));
         }
         if (poNums.length > 0) {
-          row.NoPOList = [...new Set([...row.NoPOList, ...poNums])];
+          row.NoPOList = Array.from(new Set([...row.NoPOList, ...poNums]));
         }
 
         if (row.NoDokumenList.length > 0) {
           row.TotalDokumen = row.NoDokumenList.length;
         }
-      });
+      }
 
       renderDashboard();
       renderCalendarDashboard();
@@ -577,11 +578,11 @@
       tbody.innerHTML = '';
 
       const outstandingItems = orderDetailsData.filter(item => {
-        const isOutstanding = item.OutstandingQty > 0;
-        const isPartially = item.Status.toLowerCase().includes('partial') || 
-                            item.Status.toLowerCase().includes('pending') || 
-                            item.Status.toLowerCase().includes('process');
-        return isOutstanding || isPartially;
+        const statusLower = item.Status.toLowerCase();
+        return item.OutstandingQty > 0 || 
+               statusLower.includes('partial') || 
+               statusLower.includes('pending') || 
+               statusLower.includes('process');
       });
 
       badgeCount.innerText = outstandingItems.length;
@@ -597,6 +598,7 @@
         return;
       }
 
+      let rowsHtml = '';
       outstandingItems.forEach((row, idx) => {
         const docKey = row.TransactionNumber || `DOC-${idx}`;
         const currentNote = orderNotes[docKey] !== undefined ? orderNotes[docKey] : (row.Note || '');
@@ -613,7 +615,7 @@
         const safeTgl = row.TanggalKirim.replace(/'/g, "\\'");
         const safeArmada = row.Armada.replace(/'/g, "\\'");
 
-        tbody.innerHTML += `
+        rowsHtml += `
           <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
             <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
             <td class="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">${row.TanggalKirim}</td>
@@ -642,6 +644,7 @@
             </td>
           </tr>`;
       });
+      tbody.innerHTML = rowsHtml;
     }
 
     function saveNote(docKey, noteText) {
@@ -680,7 +683,7 @@
 
       rawData = [...parsedJadwal, ...parsedTambahan].filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
 
-      datesList = [...new Set(rawData.map(item => item.Tanggal))];
+      datesList = Array.from(new Set(rawData.map(item => item.Tanggal)));
       populateFilters();
 
       if (datesList.length > 0) {
@@ -704,15 +707,9 @@
 
       const rawDokumen = item['Dokumen'] || item['Total Dokumen'] || item['Total dok'] || '1 Dok';
       const parsedDokumen = parseInt(String(rawDokumen).replace(/[^0-9]/g, '')) || 1;
-
-      const rawBerat = item['Total berat'] || item['Berat'] || '0';
-      const parsedBerat = parseInt(String(rawBerat).replace(/[^0-9]/g, '')) || 0;
-
-      const rawCost = item['Cost'] || '0';
-      const parsedCost = parseInt(String(rawCost).replace(/[^0-9]/g, '')) || 0;
-
-      const rawValue = item['Value'] || '0';
-      const parsedValue = parseInt(String(rawValue).replace(/[^0-9]/g, '')) || 0;
+      const parsedBerat = parseInt(String(item['Total berat'] || item['Berat'] || '0').replace(/[^0-9]/g, '')) || 0;
+      const parsedCost = parseInt(String(item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0;
+      const parsedValue = parseInt(String(item['Value'] || '0').replace(/[^0-9]/g, '')) || 0;
 
       let armadaName = (item['Armada'] || 'LAINNYA').trim().toUpperCase();
       if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
@@ -734,7 +731,8 @@
 
     function extractRowFields(item) {
       const getVal = (keys) => {
-        for (let k of keys) {
+        for (let i = 0; i < keys.length; i++) {
+          const k = keys[i];
           if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
             return String(item[k]).trim();
           }
@@ -744,8 +742,7 @@
 
       const parseNum = (val) => {
         if (!val) return 0;
-        const cleaned = String(val).replace(/[^0-9.-]/g, '');
-        return parseFloat(cleaned) || 0;
+        return parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
       };
 
       return {
@@ -782,16 +779,20 @@
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       
       const dataByDate = {};
-      rawData.forEach(item => {
+      for (let i = 0; i < rawData.length; i++) {
+        const item = rawData[i];
         if (item.ISODate) {
-          const d = new Date(item.ISODate);
-          if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) {
-            const dateNum = d.getDate();
+          const parts = item.ISODate.split('-');
+          const itemYear = parseInt(parts[0]);
+          const itemMonth = parseInt(parts[1]) - 1;
+          
+          if (itemMonth === selectedMonth && itemYear === selectedYear) {
+            const dateNum = parseInt(parts[2]);
             if (!dataByDate[dateNum]) dataByDate[dateNum] = [];
             dataByDate[dateNum].push(item);
           }
         }
-      });
+      }
 
       let weeks = [];
       let currentWeek = [];
@@ -976,8 +977,8 @@
     }
 
     function populateFilters() {
-      const armadas = [...new Set(rawData.map(item => item.Armada))];
-      const daerahs = [...new Set(rawData.map(item => item.Daerah))];
+      const armadas = Array.from(new Set(rawData.map(item => item.Armada)));
+      const daerahs = Array.from(new Set(rawData.map(item => item.Daerah)));
 
       const armadaSelect = document.getElementById('armadaFilter');
       armadaSelect.innerHTML = '<option value="ALL">Semua Armada</option>';
@@ -1051,6 +1052,13 @@
       });
     }
 
+    function debounceApplyFilters() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        applyFilters();
+      }, 200);
+    }
+
     function applyFilters() {
       const search = document.getElementById('searchInput').value.trim();
       const startDate = document.getElementById('startDateInput').value;
@@ -1111,15 +1119,18 @@
         groupedByArmada[item.Armada].push(item);
       });
 
+      let fullCardsHtml = '';
       Object.keys(groupedByArmada).forEach(armadaName => {
         const items = groupedByArmada[armadaName];
-        const totalBerat = items.reduce((sum, i) => sum + i.TotalBerat, 0);
-        const totalDok = items.reduce((sum, i) => sum + i.TotalDokumen, 0);
-        const totalCost = items.reduce((sum, i) => sum + i.Cost, 0);
-        const totalVal = items.reduce((sum, i) => sum + i.Value, 0);
+        let totalBerat = 0, totalDok = 0, totalCost = 0, totalVal = 0;
 
         let tableRows = '';
         items.forEach((row, idx) => {
+          totalBerat += row.TotalBerat;
+          totalDok += row.TotalDokumen;
+          totalCost += row.Cost;
+          totalVal += row.Value;
+
           const safeCust = row.Customer.replace(/'/g, "\\'");
           const safeTgl = row.Tanggal.replace(/'/g, "\\'");
           const safeArmada = row.Armada.replace(/'/g, "\\'");
@@ -1152,7 +1163,7 @@
             </tr>`;
         });
 
-        const cardHtml = `
+        fullCardsHtml += `
           <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
             <div class="bg-indigo-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
               <div class="flex items-center space-x-3">
@@ -1192,17 +1203,21 @@
               </table>
             </div>
           </div>`;
-
-        container.insertAdjacentHTML('beforeend', cardHtml);
       });
+
+      container.innerHTML = fullCardsHtml;
     }
 
     function updateMetrics(data) {
-      const totalPengiriman = data.length;
-      const totalDokumen = data.reduce((sum, i) => sum + i.TotalDokumen, 0);
-      const totalBerat = data.reduce((sum, i) => sum + i.TotalBerat, 0);
-      const totalCost = data.reduce((sum, i) => sum + i.Cost, 0);
-      const totalValue = data.reduce((sum, i) => sum + i.Value, 0);
+      let totalPengiriman = data.length;
+      let totalDokumen = 0, totalBerat = 0, totalCost = 0, totalValue = 0;
+
+      for (let i = 0; i < data.length; i++) {
+        totalDokumen += data[i].TotalDokumen;
+        totalBerat += data[i].TotalBerat;
+        totalCost += data[i].Cost;
+        totalValue += data[i].Value;
+      }
 
       document.getElementById('metricPengiriman').innerText = totalPengiriman;
       document.getElementById('metricDokumen').innerText = totalDokumen;
@@ -1240,7 +1255,7 @@
         renderModalTable(matchedItems);
         modalLoading.classList.add('hidden');
         modalContent.classList.remove('hidden');
-      }, 50);
+      }, 20);
     }
 
     function closeDocumentModal() {
@@ -1266,25 +1281,24 @@
         return;
       }
 
-      const docNums = [...new Set(items.map(i => i.TransactionNumber))];
-      const totalQty = items.reduce((sum, i) => sum + i.Qty, 0);
-      const totalDelivered = items.reduce((sum, i) => sum + i.DeliveredQty, 0);
-      const totalOutstanding = items.reduce((sum, i) => sum + i.OutstandingQty, 0);
+      const docNums = Array.from(new Set(items.map(i => i.TransactionNumber)));
+      let totalQty = 0, totalDelivered = 0, totalOutstanding = 0;
 
-      document.getElementById('modalDocCountBadge').innerText = docNums.length;
-      document.getElementById('modalTotalQtyBadge').innerText = totalQty.toLocaleString('id-ID');
-      document.getElementById('modalTotalDeliveredBadge').innerText = totalDelivered.toLocaleString('id-ID');
-      document.getElementById('modalTotalOutstandingBadge').innerText = totalOutstanding.toLocaleString('id-ID');
-
+      let rowsHtml = '';
       items.forEach((row, idx) => {
+        totalQty += row.Qty;
+        totalDelivered += row.DeliveredQty;
+        totalOutstanding += row.OutstandingQty;
+
         let statusColor = 'bg-slate-100 text-slate-700';
-        if (row.Status.toLowerCase().includes('delivered') || row.Status.toLowerCase().includes('done') || row.Status.toLowerCase().includes('selesai')) {
+        const st = row.Status.toLowerCase();
+        if (st.includes('delivered') || st.includes('done') || st.includes('selesai')) {
           statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-        } else if (row.Status.toLowerCase().includes('process') || row.Status.toLowerCase().includes('pending')) {
+        } else if (st.includes('process') || st.includes('pending')) {
           statusColor = 'bg-amber-100 text-amber-800 border border-amber-200';
         }
 
-        tbody.innerHTML += `
+        rowsHtml += `
           <tr class="hover:bg-slate-50 transition">
             <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
             <td class="py-3 px-3 font-mono font-bold text-indigo-900 whitespace-nowrap">${row.TransactionNumber}</td>
@@ -1302,6 +1316,12 @@
             </td>
           </tr>`;
       });
+
+      document.getElementById('modalDocCountBadge').innerText = docNums.length;
+      document.getElementById('modalTotalQtyBadge').innerText = totalQty.toLocaleString('id-ID');
+      document.getElementById('modalTotalDeliveredBadge').innerText = totalDelivered.toLocaleString('id-ID');
+      document.getElementById('modalTotalOutstandingBadge').innerText = totalOutstanding.toLocaleString('id-ID');
+      tbody.innerHTML = rowsHtml;
     }
 
     function openAddRoutingModal(armadaName, dateFormatted) {
