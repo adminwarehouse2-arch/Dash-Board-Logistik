@@ -110,7 +110,7 @@
                 OUTSTANDING PO & PARTIAL FULFILLMENT 
                 <span id="outstandingBadgeCount" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
               </h3>
-              <p class="text-xs text-indigo-200">Daftar PO berdasarkan Kategori Status (Kolom F - INPUT ORDER)</p>
+              <p class="text-xs text-indigo-200">Daftar PO yang Belum Terkirim / Masih Partial Fulfillment (Kolom F)</p>
             </div>
           </div>
           <div class="flex items-center space-x-2">
@@ -121,15 +121,16 @@
 
         <div id="outstandingContent" class="hidden border-t border-slate-200 p-4 bg-slate-50 space-y-3">
           
-          <!-- FILTER DROPDOWN STATUS (KOLOM F) -->
+          <!-- FILTER DROPDOWN STATUS (KHUSUS BELUM TERKIRIM & PARTIAL FULFILLMENT) -->
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
             <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
               <i class="fa-solid fa-filter text-indigo-600"></i>
-              <span>Pilih Filter Status (Kolom F Sheet INPUT ORDER):</span>
+              <span>Filter Status Outstanding:</span>
             </div>
-            <select id="statusFilterSelect" onchange="renderOutstandingTable()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-950 bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]">
-              <option value="OUTSTANDING_ONLY" selected>Status Outstanding (Belum Terkirim / Partial)</option>
-              <option value="ALL">-- Semua Status (Kolom F) --</option>
+            <select id="statusFilterSelect" onchange="renderOutstandingTable()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-950 bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[220px]">
+              <option value="ALL_OUTSTANDING" selected>Semua Outstanding (Belum Terkirim & Partial)</option>
+              <option value="BELUM_TERKIRIM">Belum Terkirim</option>
+              <option value="PARTIAL">Partial Fulfillment</option>
             </select>
           </div>
 
@@ -511,7 +512,6 @@
         .then(([jadwalData, orderData, tambahanData]) => {
           processOrderDetailsData(orderData);
           processRawData(jadwalData, tambahanData);
-          populateStatusDropdown(orderData);
           renderOutstandingTable();
 
           const now = new Date();
@@ -531,7 +531,6 @@
       });
     }
 
-    // PEMBACAAN DATA STATUS DARI KOLOM F (SHEET INPUT ORDER)
     function extractRowFields(item) {
       const getVal = (keys) => {
         for (let k of keys) {
@@ -553,7 +552,7 @@
         NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
         TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
         NoPO: getVal(['NO PO', 'PO Number']) || '-',
-        Status: getVal(['Status', 'F', 'status']) || '-', // Kolom F (Status)
+        Status: getVal(['Status', 'F', 'status']) || '-',
         Armada: getVal(['Armada']) || '-',
         NamaBarang: getVal(['Product Name', 'Nama Barang', 'O']) || '-',
         KodeBarang: getVal(['Product Code', 'Kode Barang', 'P']) || '-',
@@ -563,24 +562,6 @@
         OutstandingQty: parseNum(getVal(['Outstanding Qty', 'T'])),
         Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
       };
-    }
-
-    // MENGISI OPSI DROPDOWN PENCARIAN STATUS KOLOM F
-    function populateStatusDropdown(orderData) {
-      const select = document.getElementById('statusFilterSelect');
-      if (!select) return;
-
-      const statuses = [...new Set(orderDetailsData.map(i => i.Status).filter(s => s && s !== '-'))];
-      
-      let htmlOptions = `
-        <option value="OUTSTANDING_ONLY" selected>Status Outstanding (Belum Terkirim / Partial)</option>
-        <option value="ALL">-- Semua Status (Kolom F) --</option>`;
-
-      statuses.forEach(st => {
-        htmlOptions += `<option value="${st}">${st}</option>`;
-      });
-
-      select.innerHTML = htmlOptions;
     }
 
     function processRawData(jadwalData, tambahanData = []) {
@@ -636,7 +617,7 @@
       };
     }
 
-    // PENCARIAN & RENDER TABEL OUTSTANDING BERDASARKAN STATUS KOLOM F
+    // LOGIKA PERBAIKAN: HANYA MEMFILTER DATA STATUS "BELUM TERKIRIM" DAN "PARTIAL FULFILLMENT"
     function renderOutstandingTable() {
       const tbody = document.getElementById('outstandingTableBody');
       const badgeCount = document.getElementById('outstandingBadgeCount');
@@ -645,22 +626,20 @@
       if (!tbody || !badgeCount) return;
 
       tbody.innerHTML = '';
-      const selectedStatus = filterSelect ? filterSelect.value : 'OUTSTANDING_ONLY';
+      const selectedStatus = filterSelect ? filterSelect.value : 'ALL_OUTSTANDING';
 
       const filteredItems = orderDetailsData.filter(item => {
-        const statusVal = item.Status.trim();
-        const statusLower = statusVal.toLowerCase();
+        const statusLower = item.Status.toLowerCase().trim();
+        const isBelumTerkirim = statusLower.includes('belum terkirim');
+        const isPartial = statusLower.includes('partial');
 
-        if (selectedStatus === 'OUTSTANDING_ONLY') {
-          const isBelumTerkirim = statusLower.includes('belum terkirim');
-          const isPartial = statusLower.includes('partial');
-          const isPending = statusLower.includes('pending');
-          const isOutstandingQty = item.OutstandingQty > 0;
-          return (isBelumTerkirim || isPartial || isPending || isOutstandingQty) && !statusLower.includes('closed') && !statusLower.includes('terkirim');
-        } else if (selectedStatus === 'ALL') {
-          return true;
+        if (selectedStatus === 'BELUM_TERKIRIM') {
+          return isBelumTerkirim;
+        } else if (selectedStatus === 'PARTIAL') {
+          return isPartial;
         } else {
-          return statusVal.toLowerCase() === selectedStatus.toLowerCase();
+          // Default ALL_OUTSTANDING: Ambil keduanya
+          return (isBelumTerkirim || isPartial || item.OutstandingQty > 0) && !statusLower.includes('closed') && !statusLower.includes('terkirim');
         }
       });
 
@@ -671,7 +650,7 @@
           <tr>
             <td colspan="9" class="py-6 text-center text-slate-400 font-medium">
               <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-2 block"></i>
-              Tidak ada data PO yang cocok dengan kategori status yang dipilih.
+              Tidak ada data PO yang cocok untuk opsi status ini.
             </td>
           </tr>`;
         return;
@@ -685,13 +664,9 @@
         const matchedRaw = rawData.find(r => cleanString(r.Customer).includes(cleanCust) || cleanCust.includes(cleanString(r.Customer)));
         const daerahText = matchedRaw ? matchedRaw.Daerah : '-';
 
-        let statusBadge = `<span class="bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">${row.Status}</span>`;
+        let statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Belum Terkirim</span>`;
         if (row.Status.toLowerCase().includes('partial')) {
           statusBadge = `<span class="bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Partial Fulfillment</span>`;
-        } else if (row.Status.toLowerCase().includes('terkirim') || row.Status.toLowerCase().includes('closed')) {
-          statusBadge = `<span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">${row.Status}</span>`;
-        } else if (row.Status.toLowerCase().includes('belum')) {
-          statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Belum Terkirim</span>`;
         }
 
         const safeCust = row.NamaCustomer.replace(/'/g, "\\'");
@@ -709,7 +684,7 @@
               <span class="block text-[10px] text-slate-400 font-sans font-normal">PO: ${row.NoPO}</span>
             </td>
             <td class="py-2.5 px-3 text-center">${statusBadge}</td>
-            <td class="py-2.5 px-3 text-center font-black ${row.OutstandingQty > 0 ? 'text-rose-600' : 'text-slate-500'}">${row.OutstandingQty.toLocaleString('id-ID')} ${row.Unit}</td>
+            <td class="py-2.5 px-3 text-center font-black text-rose-600">${row.OutstandingQty.toLocaleString('id-ID')} ${row.Unit}</td>
             <td class="py-2.5 px-3">
               <input 
                 type="text" 
