@@ -425,7 +425,6 @@
     let datesList = [];
     let currentDateIndex = 0;
 
-    // Catatan lokal (localStorage browser)
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -491,17 +490,12 @@
 
       Promise.all([fetchJadwal, fetchOrders, fetchTambahan])
         .then(([jadwalData, orderData, tambahanData]) => {
-          if (jadwalData.length === 0 && tambahanData.length === 0) {
-            showError();
-            return;
-          }
-
           processRawData(jadwalData, tambahanData);
           if (orderData.length > 0) {
             processOrderDetailsData(orderData);
             mapOrderDocsFast();
-            renderOutstandingTable();
           }
+          renderOutstandingTable();
 
           const timeStamp = getFormattedTimestamp();
           badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
@@ -579,7 +573,7 @@
       const tbody = document.getElementById('outstandingTableBody');
       const badgeCount = document.getElementById('outstandingBadgeCount');
       if (!tbody || !badgeCount) return;
-      
+
       tbody.innerHTML = '';
 
       const outstandingItems = orderDetailsData.filter(item => {
