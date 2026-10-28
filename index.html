@@ -425,7 +425,7 @@
     let datesList = [];
     let currentDateIndex = 0;
 
-    // Ambil Catatan dari LocalStorage Browser (TIDAK MENGUBAH GOOGLE SHEETS)
+    // Catatan lokal (localStorage browser)
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -568,7 +568,6 @@
       renderCalendarDashboard();
     }
 
-    // --- ACCORDION OUTSTANDING PO ---
     function toggleOutstandingSection() {
       const content = document.getElementById('outstandingContent');
       const icon = document.getElementById('outstandingArrowIcon');
@@ -576,10 +575,11 @@
       icon.classList.toggle('rotate-180');
     }
 
-    // --- RENDER TABEL OUTSTANDING PO ---
     function renderOutstandingTable() {
       const tbody = document.getElementById('outstandingTableBody');
       const badgeCount = document.getElementById('outstandingBadgeCount');
+      if (!tbody || !badgeCount) return;
+      
       tbody.innerHTML = '';
 
       const outstandingItems = orderDetailsData.filter(item => {
@@ -650,7 +650,6 @@
       });
     }
 
-    // SIMPAN CATATAN KE LOCAL STORAGE (WEB ONLY)
     function saveNote(docKey, noteText) {
       orderNotes[docKey] = noteText;
       localStorage.setItem('logistics_order_notes', JSON.stringify(orderNotes));
@@ -1080,7 +1079,7 @@
       document.getElementById('startDateInput').value = '';
       document.getElementById('endDateInput').value = '';
       document.getElementById('dateNavigator').classList.remove('opacity-50', 'pointer-events-none');
-      applyFilters();
+      renderDashboard();
     }
 
     function renderDashboard() {
