@@ -121,7 +121,7 @@
 
         <div id="outstandingContent" class="hidden border-t border-slate-200 p-4 bg-slate-50 space-y-3">
           
-          <!-- FILTER DROPDOWN STATUS (KHUSUS BELUM TERKIRIM & PARTIAL FULFILLMENT) -->
+          <!-- FILTER DROPDOWN STATUS -->
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
             <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
               <i class="fa-solid fa-filter text-indigo-600"></i>
@@ -617,7 +617,7 @@
       };
     }
 
-    // LOGIKA PERBAIKAN: HANYA MEMFILTER DATA STATUS "BELUM TERKIRIM" DAN "PARTIAL FULFILLMENT"
+    // LOGIKA PERBAIKAN & OPTIMASI PERFORMA TABEL OUTSTANDING
     function renderOutstandingTable() {
       const tbody = document.getElementById('outstandingTableBody');
       const badgeCount = document.getElementById('outstandingBadgeCount');
@@ -625,12 +625,12 @@
 
       if (!tbody || !badgeCount) return;
 
-      tbody.innerHTML = '';
       const selectedStatus = filterSelect ? filterSelect.value : 'ALL_OUTSTANDING';
 
-      const filteredItems = orderDetailsData.filter(item => {
-        const statusLower = item.Status.toLowerCase().trim();
-        const isBelumTerkirim = statusLower.includes('belum terkirim');
+      // 1. FILTER DATA
+      let filteredItems = orderDetailsData.filter(item => {
+        const statusLower = (item.Status || '').toLowerCase().trim();
+        const isBelumTerkirim = statusLower.includes('belum') || statusLower.includes('pending') || statusLower.includes('unfulfilled');
         const isPartial = statusLower.includes('partial');
 
         if (selectedStatus === 'BELUM_TERKIRIM') {
@@ -638,9 +638,23 @@
         } else if (selectedStatus === 'PARTIAL') {
           return isPartial;
         } else {
-          // Default ALL_OUTSTANDING: Ambil keduanya
-          return (isBelumTerkirim || isPartial || item.OutstandingQty > 0) && !statusLower.includes('closed') && !statusLower.includes('terkirim');
+          // ALL_OUTSTANDING
+          const isClosed = statusLower.includes('closed') || statusLower.includes('terkirim') || statusLower.includes('done') || statusLower.includes('complete');
+          return (isBelumTerkirim || isPartial || item.OutstandingQty > 0) && !isClosed;
         }
+      });
+
+      // 2. SORTING BERDASARKAN TANGGAL (Kronologis terlama -> terbaru)
+      filteredItems.sort((a, b) => {
+        const parseDate = (dStr) => {
+          if (!dStr) return 0;
+          const parts = dStr.split('-');
+          if (parts.length === 3) {
+            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+          }
+          return 0;
+        };
+        return parseDate(a.TanggalKirim) - parseDate(b.TanggalKirim);
       });
 
       badgeCount.innerText = filteredItems.length;
@@ -656,6 +670,8 @@
         return;
       }
 
+      // 3. OPTIMASI STRING BUILDER (Cepat & Anti-Lag)
+      let rowsHtml = '';
       filteredItems.forEach((row, idx) => {
         const docKey = row.TransactionNumber || `DOC-${idx}`;
         const currentNote = orderNotes[docKey] !== undefined ? orderNotes[docKey] : (row.Note || '');
@@ -665,15 +681,15 @@
         const daerahText = matchedRaw ? matchedRaw.Daerah : '-';
 
         let statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Belum Terkirim</span>`;
-        if (row.Status.toLowerCase().includes('partial')) {
+        if ((row.Status || '').toLowerCase().includes('partial')) {
           statusBadge = `<span class="bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Partial Fulfillment</span>`;
         }
 
-        const safeCust = row.NamaCustomer.replace(/'/g, "\\'");
-        const safeTgl = row.TanggalKirim.replace(/'/g, "\\'");
-        const safeArmada = row.Armada.replace(/'/g, "\\'");
+        const safeCust = (row.NamaCustomer || '').replace(/'/g, "\\'");
+        const safeTgl = (row.TanggalKirim || '').replace(/'/g, "\\'");
+        const safeArmada = (row.Armada || '').replace(/'/g, "\\'");
 
-        tbody.innerHTML += `
+        rowsHtml += `
           <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
             <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
             <td class="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">${row.TanggalKirim}</td>
@@ -701,6 +717,8 @@
             </td>
           </tr>`;
       });
+
+      tbody.innerHTML = rowsHtml;
     }
 
     function openDocumentModal(customerName, tanggalStr, armadaName) {
@@ -769,16 +787,17 @@
       document.getElementById('modalTotalDeliveredBadge').innerText = totalDelivered.toLocaleString('id-ID');
       document.getElementById('modalTotalOutstandingBadge').innerText = totalOutstanding.toLocaleString('id-ID');
 
+      let rowsHtml = '';
       items.forEach((row, idx) => {
         let statusColor = 'bg-slate-100 text-slate-700';
-        const st = row.Status.toLowerCase();
+        const st = (row.Status || '').toLowerCase();
         if (st.includes('terkirim') || st.includes('closed') || st.includes('done')) {
           statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
         } else if (st.includes('partial') || st.includes('belum')) {
           statusColor = 'bg-rose-100 text-rose-800 border border-rose-200';
         }
 
-        tbody.innerHTML += `
+        rowsHtml += `
           <tr class="hover:bg-slate-50 transition">
             <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
             <td class="py-3 px-3 font-mono font-bold text-indigo-900 whitespace-nowrap">${row.TransactionNumber}</td>
@@ -796,6 +815,7 @@
             </td>
           </tr>`;
       });
+      tbody.innerHTML = rowsHtml;
     }
 
     function closeDocumentModal() {
@@ -917,12 +937,12 @@
       if (el) el.classList.toggle('hidden');
     }
 
+    // OPTIMASI KALENDER AGAR TIDAK LAG
     function renderCalendarDashboard() {
       const calendarContainer = document.getElementById('calendarMatrixContainer');
       const selectedMonth = parseInt(document.getElementById('monthSelect').value);
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
 
-      calendarContainer.innerHTML = '';
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       
       const dataByDate = {};
@@ -951,6 +971,7 @@
       }
 
       const dayNamesHeader = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU"];
+      let allWeeksHtml = '';
 
       weeks.forEach((weekData, index) => {
         const weekNum = index + 1;
@@ -1086,16 +1107,16 @@
           }
         }
 
-        const weekHtml = `
+        allWeeksHtml += `
           <div class="bg-slate-50/40 rounded-2xl shadow-2xs border border-slate-200/80 p-3.5">
             <div class="mb-2.5 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200/60 pb-2">
               <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${weekNum}
             </div>
             <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin">${dayColsHtml}</div>
           </div>`;
-
-        calendarContainer.insertAdjacentHTML('beforeend', weekHtml);
       });
+
+      calendarContainer.innerHTML = allWeeksHtml;
     }
 
     function populateFilters() {
@@ -1182,8 +1203,7 @@
       }
 
       updateMetrics(filteredData);
-      container.innerHTML = '';
-
+      
       if (filteredData.length === 0) {
         container.innerHTML = `
           <div class="bg-white rounded-xl p-8 text-center text-slate-500 border border-slate-200 shadow-sm">
@@ -1199,6 +1219,7 @@
         groupedByArmada[item.Armada].push(item);
       });
 
+      let allCardsHtml = '';
       Object.keys(groupedByArmada).forEach(armadaName => {
         const items = groupedByArmada[armadaName];
         const totalBerat = items.reduce((sum, i) => sum + i.TotalBerat, 0);
@@ -1222,7 +1243,7 @@
             </tr>`;
         });
 
-        const cardHtml = `
+        allCardsHtml += `
           <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
             <div class="bg-indigo-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
               <div class="flex items-center space-x-3">
@@ -1256,9 +1277,9 @@
               </table>
             </div>
           </div>`;
-
-        container.insertAdjacentHTML('beforeend', cardHtml);
       });
+
+      container.innerHTML = allCardsHtml;
     }
 
     function updateMetrics(data) {
