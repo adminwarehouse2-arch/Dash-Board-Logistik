@@ -315,11 +315,12 @@
 
   <script>
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
-    const CSV_JADWAL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Jadwal%20Harian`;
+    // Gunakan link pub?gid=350332557 yang terbukti bisa diakses publik untuk Jadwal Harian
+    const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-   const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbyTU23bbhxsCsEK2_9OvEjQGkra8oaP_Cfvab3Jym_Ucv5nRZAmqIFYt3A2LZKFJ6kz/exec";
+    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbyTU23bbhxsCsEK2_9OvEjQGkra8oaP_Cfvab3Jym_Ucv5nRZAmqIFYt3A2LZKFJ6kz/exec";
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
     let rawData = [];
@@ -374,15 +375,41 @@
       return str ? String(str).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
     }
 
-    function normalizeDateString(dateStr) {
+function normalizeDateString(dateStr) {
       if (!dateStr) return '';
       const str = String(dateStr).trim();
+
+      // 1. Tangani format Date(YYYY,M,D) bawaan Google Visualization API
+      const gvizMatch = str.match(/^Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})\)/i);
+      if (gvizMatch) {
+        const y = gvizMatch[1];
+        const m = String(parseInt(gvizMatch[2], 10) + 1).padStart(2, '0');
+        const d = String(parseInt(gvizMatch[3], 10)).padStart(2, '0');
+        return `${d}-${m}-${y}`;
+      }
+
+      // 2. Tangani format pemisah -, /, atau .
       const parts = str.split(/[-/.]/);
       if (parts.length === 3) {
-        let day = parts[0].length === 4 ? parts[2] : parts[0];
-        let month = parts[1];
-        let year = parts[0].length === 4 ? parts[0] : parts[2];
-        return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
+        let p0 = parseInt(parts[0], 10);
+        let p1 = parseInt(parts[1], 10);
+        let p2 = parseInt(parts[2], 10);
+
+        let day, month, year;
+        if (parts[0].length === 4) {
+          // Format YYYY-MM-DD
+          year = parts[0]; month = parts[1]; day = parts[2];
+        } else {
+          year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+          // Jika angka kedua > 12, berarti format Amerika MM/DD/YYYY (contoh: 11/19/2026)
+          if (p1 > 12) {
+            month = parts[0]; day = parts[1];
+          } else {
+            // Standar Indonesia DD-MM-YYYY (contoh: 14-11-2026 atau 02-11-2026)
+            day = parts[0]; month = parts[1];
+          }
+        }
+        return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
       }
       return str;
     }
