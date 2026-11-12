@@ -4,20 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Logistics Armada Dashboard</title>
-  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <!-- PapaParse untuk parsing CSV Google Sheets -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-12">
 
-  <!-- HEADER & MENU TAB NAVIGASI KIRI ATAS -->
+  <!-- HEADER & NAVIGASI 3 HALAMAN -->
   <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
-      
-      <!-- Kiri Atas: Logo & Navigation Tabs -->
-      <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col lg:flex-row justify-between items-center gap-4">
+      <div class="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
         <div class="flex items-center space-x-3">
           <i class="fa-solid fa-truck-ramp-box text-2xl text-amber-400"></i>
           <div>
@@ -25,19 +21,18 @@
             <p class="text-[10px] text-indigo-200">Management & Scheduling System</p>
           </div>
         </div>
-
-        <!-- TAB NAVIGATION -->
-        <div class="flex bg-indigo-950 p-1 rounded-xl border border-indigo-800/60 w-full sm:w-auto justify-center">
+        <div class="flex flex-wrap bg-indigo-950 p-1 rounded-xl border border-indigo-800/60 w-full sm:w-auto justify-center gap-1">
           <button id="tabDashboardBtn" onclick="switchTab('dashboard')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow">
             <i class="fa-solid fa-calendar-days"></i> 1. Dashboard Jadwal Kirim
           </button>
           <button id="tabFilterBtn" onclick="switchTab('filter')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2">
             <i class="fa-solid fa-filter"></i> 2. Filter Jadwal Kirim
           </button>
+          <button id="tabPickupBtn" onclick="switchTab('pickup')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2">
+            <i class="fa-solid fa-truck-pickup"></i> 3. Jadwal Pick Up
+          </button>
         </div>
       </div>
-
-      <!-- Kanan Atas: Sync Badge & Button -->
       <div class="flex items-center gap-2">
         <span id="syncBadge" class="bg-indigo-800 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-700 flex items-center gap-1.5 whitespace-nowrap">
           <i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...
@@ -46,297 +41,216 @@
           <i class="fa-solid fa-rotate"></i> Sync Data
         </button>
       </div>
-
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto px-4 mt-6">
-
     <!-- TAB 1: DASHBOARD JADWAL KIRIM -->
     <section id="viewDashboard" class="space-y-6">
-      
-      <!-- Control Bar Dashboard Kalender -->
       <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
             <i class="fa-solid fa-calendar-week text-amber-500"></i> Matrix Jadwal Pengiriman Bulanan
           </h2>
-          <p class="text-xs text-slate-500">Tampilan Diperlebar (Setiap No Dokumen & PO Terpisah Rapi)</p>
+          <p class="text-xs text-slate-500">Klik customer untuk detail barang & edit <b>Keterangan</b> langsung ke Google Sheets</p>
         </div>
-
-        <!-- Filter Bulan & Tahun -->
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-2">
             <label class="text-xs font-bold text-slate-600">Bulan:</label>
-            <select id="monthSelect" onchange="renderCalendarDashboard()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 bg-indigo-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="0">Januari</option>
-              <option value="1">Februari</option>
-              <option value="2">Maret</option>
-              <option value="3">April</option>
-              <option value="4">Mei</option>
-              <option value="5">Juni</option>
-              <option value="6">Juli</option>
-              <option value="7">Agustus</option>
-              <option value="8">September</option>
-              <option value="9">Oktober</option>
-              <option value="10">November</option>
-              <option value="11">Desember</option>
+            <select id="monthSelect" onchange="renderCalendarDashboard()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 bg-indigo-50/50">
+              <option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option>
+              <option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option>
+              <option value="6">Juli</option><option value="7">Agustus</option><option value="8">September</option>
+              <option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option>
             </select>
           </div>
-
           <div class="flex items-center gap-2">
             <label class="text-xs font-bold text-slate-600">Tahun:</label>
-            <select id="yearSelect" onchange="renderCalendarDashboard()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 bg-indigo-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="2025">2025</option>
-              <option value="2026" selected>2026</option>
-              <option value="2027">2027</option>
+            <select id="yearSelect" onchange="renderCalendarDashboard()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 bg-indigo-50/50">
+              <option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Container Kalender Mingguan -->
       <div id="calendarMatrixContainer" class="space-y-6"></div>
 
-      <!-- SECTION OUTSTANDING PO & PARTIAL FULFILLMENT -->
+      <!-- OUTSTANDING PO -->
       <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mt-8">
         <button onclick="toggleOutstandingSection()" class="w-full bg-indigo-950 hover:bg-indigo-900 text-white p-4 flex justify-between items-center transition">
           <div class="flex items-center space-x-3">
-            <div class="bg-rose-500 text-white p-2 rounded-lg font-bold">
-              <i class="fa-solid fa-clock-rotate-left text-lg"></i>
-            </div>
+            <div class="bg-rose-500 text-white p-2 rounded-lg font-bold"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
             <div class="text-left">
-              <h3 class="font-extrabold text-sm md:text-base tracking-wide uppercase flex items-center gap-2">
-                OUTSTANDING PO & PARTIAL FULFILLMENT 
-                <span id="outstandingBadgeCount" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+              <h3 class="font-extrabold text-sm md:text-base uppercase flex items-center gap-2">
+                OUTSTANDING PO & PARTIAL FULFILLMENT <span id="outstandingBadgeCount" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
               </h3>
-              <p class="text-xs text-indigo-200">Daftar PO yang Belum Terkirim / Masih Partial Fulfillment (Kolom F)</p>
+              <p class="text-xs text-indigo-200">Daftar PO Belum Terkirim / Partial Fulfillment</p>
             </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-xs font-semibold text-amber-400 hidden sm:inline">Klik untuk Buka/Tutup</span>
-            <i id="outstandingArrowIcon" class="fa-solid fa-chevron-down text-xl text-amber-400 transition-transform duration-300"></i>
-          </div>
+          <i id="outstandingArrowIcon" class="fa-solid fa-chevron-down text-xl text-amber-400 transition-transform duration-300"></i>
         </button>
-
         <div id="outstandingContent" class="hidden border-t border-slate-200 p-4 bg-slate-50 space-y-3">
-          
-          <!-- FILTER DROPDOWN STATUS -->
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
-              <i class="fa-solid fa-filter text-indigo-600"></i>
-              <span>Filter Status Outstanding:</span>
-            </div>
-            <select id="statusFilterSelect" onchange="renderOutstandingTable()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-950 bg-indigo-50/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[220px]">
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-2 bg-white p-3 rounded-xl border border-slate-200">
+            <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-filter text-indigo-600 mr-1"></i> Filter Status:</span>
+            <select id="statusFilterSelect" onchange="renderOutstandingTable()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-950 bg-indigo-50/40 min-w-[220px]">
               <option value="ALL_OUTSTANDING" selected>Semua Outstanding (Belum Terkirim & Partial)</option>
               <option value="BELUM_TERKIRIM">Belum Terkirim</option>
               <option value="PARTIAL">Partial Fulfillment</option>
             </select>
           </div>
-
           <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table class="w-full text-left border-collapse text-xs md:text-sm">
               <thead class="bg-slate-800 text-white uppercase text-[11px] font-bold">
                 <tr>
-                  <th class="py-3 px-3 text-center">NO</th>
-                  <th class="py-3 px-3">TGL KIRIM</th>
-                  <th class="py-3 px-3">CUSTOMER</th>
-                  <th class="py-3 px-3">DAERAH</th>
-                  <th class="py-3 px-3">NO DOKUMEN / PO</th>
-                  <th class="py-3 px-3 text-center">STATUS</th>
-                  <th class="py-3 px-3 text-center">SISA OUTSTANDING</th>
-                  <th class="py-3 px-3 min-w-[200px]">NOTE (WEB ONLY)</th>
-                  <th class="py-3 px-3 text-center">AKSI</th>
+                  <th class="py-3 px-3 text-center">NO</th><th class="py-3 px-3">TGL KIRIM</th><th class="py-3 px-3">CUSTOMER</th>
+                  <th class="py-3 px-3">DAERAH</th><th class="py-3 px-3">NO DOKUMEN / PO</th><th class="py-3 px-3 text-center">STATUS</th>
+                  <th class="py-3 px-3 text-center">SISA</th><th class="py-3 px-3 min-w-[180px]">NOTE (WEB ONLY)</th><th class="py-3 px-3 text-center">AKSI</th>
                 </tr>
               </thead>
-              <tbody id="outstandingTableBody" class="divide-y divide-slate-100">
-                <!-- Data dimasukkan via JS secara otomatis -->
-              </tbody>
+              <tbody id="outstandingTableBody" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
         </div>
       </div>
-
     </section>
 
     <!-- TAB 2: FILTER JADWAL KIRIM -->
     <section id="viewFilter" class="hidden space-y-6">
-
-      <!-- FILTER & PUSAT UNDUH BAR -->
       <div class="bg-white p-5 rounded-xl shadow-md border border-slate-200">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-xs font-extrabold uppercase tracking-wider text-indigo-900 flex items-center gap-2">
-            <i class="fa-solid fa-sliders"></i> Filter Data & Pusat Unduh
-          </h2>
-        </div>
-        
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer / No Dokumen</label>
-            <div class="relative">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
-              <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah, No Dokumen, atau No PO..." class="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer</label>
+            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah..." class="w-full px-3 py-2 text-sm border rounded-lg" />
           </div>
-
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Armada</label>
-            <select id="armadaFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="ALL">Semua Armada</option>
-            </select>
+            <select id="armadaFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg"><option value="ALL">Semua Armada</option></select>
           </div>
-
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Dari Tanggal</label>
-            <input type="date" id="startDateInput" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="date" id="startDateInput" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg" />
           </div>
-
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sampai Tanggal</label>
-            <input type="date" id="endDateInput" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="date" id="endDateInput" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg" />
           </div>
         </div>
-
         <div class="flex flex-col md:flex-row justify-between items-center gap-4 pt-3 border-t border-slate-100">
           <div class="w-full md:w-1/3">
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Daerah</label>
-            <select id="daerahFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="ALL">Semua Daerah</option>
-            </select>
+            <select id="daerahFilter" onchange="applyFilters()" class="w-full py-2 px-3 text-sm border rounded-lg"><option value="ALL">Semua Daerah</option></select>
           </div>
-
-          <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <button onclick="resetFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition">
-              <i class="fa-solid fa-rotate-left mr-1"></i> Reset
-            </button>
-            <button onclick="downloadExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow flex items-center gap-2">
-              <i class="fa-solid fa-file-excel"></i> Unduh Excel
-            </button>
-            <button onclick="downloadCSV()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow flex items-center gap-2">
-              <i class="fa-solid fa-file-csv"></i> Unduh CSV
-            </button>
-            <button onclick="printReport()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow flex items-center gap-2">
-              <i class="fa-solid fa-print"></i> Cetak
-            </button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="resetFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold">Reset</button>
+            <button onclick="downloadCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">Unduh Excel/CSV</button>
+            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold">Cetak</button>
           </div>
         </div>
       </div>
 
-      <!-- SLIDE NAVIGATOR PER TANGGAL -->
-      <div id="dateNavigator" class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div class="flex items-center space-x-2">
-          <button onclick="slideDate(-1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 px-3 py-2 rounded-lg shadow-sm transition text-sm font-semibold">
-            <i class="fa-solid fa-chevron-left mr-1"></i> Tanggal Sebelumnya
-          </button>
-          <button onclick="slideDate(1)" class="bg-white border border-slate-300 hover:bg-indigo-600 hover:text-white text-slate-700 px-3 py-2 rounded-lg shadow-sm transition text-sm font-semibold">
-            Tanggal Selanjutnya <i class="fa-solid fa-chevron-right ml-1"></i>
-          </button>
+          <button onclick="slideDate(-1)" class="bg-white border px-3 py-2 rounded-lg text-sm font-semibold"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</button>
+          <button onclick="slideDate(1)" class="bg-white border px-3 py-2 rounded-lg text-sm font-semibold">Selanjutnya <i class="fa-solid fa-chevron-right"></i></button>
         </div>
-
         <div class="text-center">
-          <span class="text-xs uppercase font-bold text-indigo-500 tracking-wider block">Menampilkan Tanggal Active</span>
-          <span id="currentDateDisplay" class="text-xl font-extrabold text-indigo-900">Memuat Data...</span>
+          <span class="text-xs uppercase font-bold text-indigo-500 block">Tanggal Active</span>
+          <span id="currentDateDisplay" class="text-xl font-extrabold text-indigo-900">-</span>
         </div>
-
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-slate-600">Pilih Tanggal:</span>
-          <select id="dateSelect" onchange="onDateSelectChange(this.value)" class="py-1.5 px-3 border border-indigo-300 rounded-lg text-sm bg-white font-semibold text-indigo-900 focus:outline-none">
-          </select>
-        </div>
+        <select id="dateSelect" onchange="onDateSelectChange(this.value)" class="py-1.5 px-3 border border-indigo-300 rounded-lg text-sm bg-white font-semibold"></select>
       </div>
 
-      <!-- METRIC SUMMARY CARDS -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Pengiriman</span>
-          <span id="metricPengiriman" class="text-2xl font-black text-slate-800">0</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Dokumen</span>
-          <span id="metricDokumen" class="text-2xl font-black text-indigo-600">0</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Berat</span>
-          <span id="metricBerat" class="text-2xl font-black text-amber-600">0 gr</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Cost</span>
-          <span id="metricCost" class="text-2xl font-black text-emerald-600">Rp 0</span>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Value Barang</span>
-          <span id="metricValue" class="text-2xl font-black text-purple-600">Rp 0</span>
-        </div>
+        <div class="bg-white p-4 rounded-xl border shadow-sm"><span class="text-xs font-bold text-slate-400 uppercase block">Total Pengiriman</span><span id="metricPengiriman" class="text-2xl font-black">0</span></div>
+        <div class="bg-white p-4 rounded-xl border shadow-sm"><span class="text-xs font-bold text-slate-400 uppercase block">Total Dokumen</span><span id="metricDokumen" class="text-2xl font-black text-indigo-600">0</span></div>
+        <div class="bg-white p-4 rounded-xl border shadow-sm"><span class="text-xs font-bold text-slate-400 uppercase block">Total Berat</span><span id="metricBerat" class="text-2xl font-black text-amber-600">0 gr</span></div>
+        <div class="bg-white p-4 rounded-xl border shadow-sm"><span class="text-xs font-bold text-slate-400 uppercase block">Total Cost</span><span id="metricCost" class="text-2xl font-black text-emerald-600">Rp 0</span></div>
+        <div class="bg-white p-4 rounded-xl border shadow-sm"><span class="text-xs font-bold text-slate-400 uppercase block">Total Value</span><span id="metricValue" class="text-2xl font-black text-purple-600">Rp 0</span></div>
       </div>
 
-      <!-- CONTAINER DISPLAY CARDS ARMADA -->
       <div id="armadaContainer" class="space-y-8"></div>
-
     </section>
 
-  </main>
-
-  <!-- POP-UP MODAL DETAIL TRANSACTION NUMBER & ITEM DATA -->
-  <div id="documentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 md:p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden transform transition-all duration-300">
-      
-      <!-- Modal Header -->
-      <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
-        <div class="flex items-center space-x-3">
-          <div class="bg-amber-400 p-2 rounded-lg text-slate-900">
-            <i class="fa-solid fa-boxes-packing text-lg"></i>
+    <!-- TAB 3: JADWAL PICK UP (KHUSUS ARMADA PICK UP + STATUS + GAMBAR WEB ONLY) -->
+    <section id="viewPickup" class="hidden space-y-6">
+      <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h2 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-truck-pickup text-amber-500"></i> Matrix Jadwal Khusus Armada PICK UP
+          </h2>
+          <p class="text-xs text-slate-500">Khusus filter armada <b>PICK UP</b> • Edit <b>Status</b> (Sync ke Kolom J Sheets) & <b>Foto Bukti</b> (Web Only)</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Bulan:</label>
+            <select id="pickupMonthSelect" onchange="renderPickupCalendar()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 bg-indigo-50/50">
+              <option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option>
+              <option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option>
+              <option value="6">Juli</option><option value="7">Agustus</option><option value="8">September</option>
+              <option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option>
+            </select>
           </div>
-          <div>
-            <h3 class="font-bold text-lg leading-tight" id="modalCustomerName">Detail Dokumen Customer</h3>
-            <p class="text-xs text-indigo-200" id="modalSubTitle">Rincian Dokumen & Barang Hari Ini</p>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Tahun:</label>
+            <select id="pickupYearSelect" onchange="renderPickupCalendar()" class="py-1.5 px-3 border border-indigo-200 rounded-lg text-xs font-bold text-indigo-900 bg-indigo-50/50">
+              <option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option>
+            </select>
           </div>
         </div>
-        <button onclick="closeDocumentModal()" class="text-indigo-200 hover:text-white text-xl font-bold p-1 transition">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
       </div>
 
-      <!-- Modal Body -->
-      <div class="p-4 md:p-6 overflow-y-auto flex-1">
-        <div id="modalLoading" class="text-center py-12">
-          <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600 mb-3"></i>
-          <p class="text-sm text-slate-500 font-medium">Memuat rincian item barang...</p>
-        </div>
+      <div id="pickupCalendarContainer" class="space-y-6"></div>
+    </section>
+  </main>
 
+  <!-- MODAL DETAIL BARANG & EDIT KETERANGAN (GAMBAR 3) -->
+  <div id="documentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 md:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+      <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <div class="bg-amber-400 p-2 rounded-lg text-slate-900"><i class="fa-solid fa-boxes-packing text-lg"></i></div>
+          <div>
+            <h3 class="font-bold text-lg leading-tight" id="modalCustomerName">Detail Dokumen Customer</h3>
+            <p class="text-xs text-indigo-200" id="modalSubTitle">Rincian Dokumen & Barang</p>
+          </div>
+        </div>
+        <button onclick="closeDocumentModal()" class="text-indigo-200 hover:text-white text-xl font-bold p-1"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-4 md:p-6 overflow-y-auto flex-1 space-y-4">
+        <div id="modalLoading" class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-600"></i></div>
         <div id="modalContent" class="hidden space-y-4">
+          
+          <!-- FORM EDIT KETERANGAN (MASUK KE KOLOM I JADWAL HARIAN) -->
+          <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div class="w-full md:flex-1">
+              <label class="block text-xs font-extrabold text-amber-900 uppercase mb-1">
+                <i class="fa-solid fa-pen-to-square text-amber-600 mr-1"></i> Edit Keterangan (Tersimpan ke Sheet Jadwal Harian - Kolom I):
+              </label>
+              <input type="text" id="modalKeteranganInput" placeholder="Masukkan keterangan pengiriman di sini..." class="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+            <div class="flex items-center gap-2 self-end md:self-center pt-1 md:pt-4">
+              <span id="modalKeteranganSaveStatus" class="text-xs font-bold text-emerald-600 hidden">✓ Tersimpan!</span>
+              <button onclick="saveKeteranganFromModal()" id="btnSaveKeterangan" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold text-xs px-4 py-2 rounded-lg shadow flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fa-solid fa-floppy-disk"></i> Simpan Keterangan
+              </button>
+            </div>
+          </div>
+
           <div class="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex flex-wrap justify-between items-center gap-3">
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-indigo-900 uppercase">Jumlah Dokumen:</span>
-              <span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-slate-600 uppercase">Total Qty Order:</span>
-              <span id="modalTotalQtyBadge" class="bg-amber-500 text-slate-900 px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-slate-600 uppercase">Total Delivered:</span>
-              <span id="modalTotalDeliveredBadge" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-slate-600 uppercase">Outstanding:</span>
-              <span id="modalTotalOutstandingBadge" class="bg-rose-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span>
-            </div>
+            <div><span class="text-xs font-bold text-indigo-900 uppercase">Dokumen: </span><span id="modalDocCountBadge" class="bg-indigo-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span></div>
+            <div><span class="text-xs font-bold text-slate-600 uppercase">Qty Order: </span><span id="modalTotalQtyBadge" class="bg-amber-500 text-slate-900 px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span></div>
+            <div><span class="text-xs font-bold text-slate-600 uppercase">Delivered: </span><span id="modalTotalDeliveredBadge" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span></div>
+            <div><span class="text-xs font-bold text-slate-600 uppercase">Outstanding: </span><span id="modalTotalOutstandingBadge" class="bg-rose-600 text-white px-2.5 py-0.5 rounded-full text-xs font-extrabold">0</span></div>
           </div>
 
           <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
             <table class="w-full text-left border-collapse text-xs md:text-sm">
-              <thead class="bg-slate-800 text-white uppercase text-[11px] tracking-wider sticky top-0 z-10">
+              <thead class="bg-slate-800 text-white uppercase text-[11px] tracking-wider">
                 <tr>
-                  <th class="py-3 px-3 text-center">No</th>
-                  <th class="py-3 px-3">Transaction No</th>
-                  <th class="py-3 px-3">NO PO / Ket</th>
-                  <th class="py-3 px-3">Kode Barang</th>
-                  <th class="py-3 px-3 min-w-[200px]">Nama Barang</th>
-                  <th class="py-3 px-3 text-center">Unit</th>
-                  <th class="py-3 px-3 text-center">Qty</th>
-                  <th class="py-3 px-3 text-center">Delivered Qty</th>
-                  <th class="py-3 px-3 text-center">Outstanding Qty</th>
-                  <th class="py-3 px-3 text-center">Status</th>
+                  <th class="py-3 px-3 text-center">No</th><th class="py-3 px-3">Transaction No</th><th class="py-3 px-3">NO PO / Ket</th>
+                  <th class="py-3 px-3">Kode Barang</th><th class="py-3 px-3 min-w-[180px]">Nama Barang</th><th class="py-3 px-3 text-center">Unit</th>
+                  <th class="py-3 px-3 text-center">Qty</th><th class="py-3 px-3 text-center">Delivered</th><th class="py-3 px-3 text-center">Outstanding</th>
+                  <th class="py-3 px-3 text-center">Status</th><th class="py-3 px-3 min-w-[160px] bg-indigo-950 text-amber-300">Keterangan</th>
                 </tr>
               </thead>
               <tbody id="modalTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
@@ -345,79 +259,59 @@
         </div>
       </div>
 
-      <!-- Modal Footer -->
-      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 flex-shrink-0">
-        <span class="italic"><i class="fa-solid fa-database mr-1"></i> Source: Sheet Input Order</span>
-        <button onclick="closeDocumentModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2 rounded-lg font-bold transition">
-          Tutup
-        </button>
+      <div class="bg-slate-50 px-6 py-3 border-t flex justify-between items-center text-xs text-slate-500">
+        <span><i class="fa-solid fa-database mr-1"></i> Source: Sheet Input Order & Jadwal Harian</span>
+        <button onclick="closeDocumentModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2 rounded-lg font-bold">Tutup</button>
       </div>
-
     </div>
   </div>
 
-  <!-- MODAL FORM ADD ROUTING BARU -->
-  <div id="addRoutingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-300">
-      
-      <!-- Header Modal Add -->
-      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
-        <div class="flex items-center space-x-2">
-          <div class="bg-amber-400 p-1.5 rounded-lg text-slate-900">
-            <i class="fa-solid fa-plus text-base"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-base leading-tight">Tambah Routing Baru</h3>
-            <p class="text-[11px] text-indigo-200">Masuk ke Sheet: <span class="font-semibold text-amber-300">Tambahan Routing</span></p>
-          </div>
-        </div>
-        <button onclick="closeAddRoutingModal()" class="text-indigo-200 hover:text-white text-lg font-bold p-1">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+  <!-- MODAL PREVIEW GAMBAR (WEB ONLY UNTUK HALAMAN 3) -->
+  <div id="imagePreviewModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+      <div class="bg-indigo-900 text-white px-5 py-3.5 flex justify-between items-center">
+        <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-image text-amber-400"></i> <span id="imgModalTitle">Bukti Gambar Pick Up</span></h3>
+        <button onclick="closeImagePreviewModal()" class="text-indigo-200 hover:text-white text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
       </div>
+      <div class="p-4 bg-slate-100 flex flex-col items-center justify-center">
+        <img id="imgModalPreview" src="" alt="Bukti Pick Up" class="max-h-[60vh] rounded-lg shadow border object-contain" />
+        <p class="text-[11px] text-slate-500 mt-2 italic">Gambar ini hanya tersimpan di Web (Browser) dan tidak masuk ke Google Sheets.</p>
+      </div>
+      <div class="bg-white px-5 py-3 border-t flex justify-between items-center">
+        <button onclick="deleteCurrentPickupImage()" class="text-xs font-bold text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash mr-1"></i> Hapus Gambar</button>
+        <button onclick="closeImagePreviewModal()" class="bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg">Tutup</button>
+      </div>
+    </div>
+  </div>
 
-      <!-- Form Input Data -->
+  <!-- MODAL ADD ROUTING BARU -->
+  <div id="addRoutingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+      <div class="bg-indigo-900 text-white px-5 py-4 flex justify-between items-center">
+        <h3 class="font-bold text-base">Tambah Routing Baru</h3>
+        <button onclick="closeAddRoutingModal()" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <form id="addRoutingForm" onsubmit="submitTambahanRouting(event)" class="p-5 space-y-3.5">
-        <input type="hidden" id="addArmadaTarget" value="" />
-        <input type="hidden" id="addDateTarget" value="" />
-
+        <input type="hidden" id="addArmadaTarget" /><input type="hidden" id="addDateTarget" />
         <div>
-          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Customer <span class="text-rose-500">*</span></label>
-          <input type="text" id="addCustomer" required placeholder="Contoh: Novotel Mangga Dua" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Customer *</label>
+          <input type="text" id="addCustomer" required class="w-full px-3 py-2 text-xs border rounded-lg" />
         </div>
-
         <div>
           <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Daerah</label>
-          <input type="text" id="addDaerah" placeholder="Contoh: Kota Jakarta Selatan" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" id="addDaerah" class="w-full px-3 py-2 text-xs border rounded-lg" />
         </div>
-
         <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dokumen</label>
-            <input type="text" id="addDokumen" placeholder="1 Dok" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cost (Rp)</label>
-            <input type="number" id="addCost" placeholder="125000" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Value (Rp)</label>
-            <input type="number" id="addValue" placeholder="0" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
+          <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dokumen</label><input type="text" id="addDokumen" value="1 Dok" class="w-full px-3 py-2 text-xs border rounded-lg" /></div>
+          <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cost</label><input type="number" id="addCost" class="w-full px-3 py-2 text-xs border rounded-lg" /></div>
+          <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Value</label><input type="number" id="addValue" class="w-full px-3 py-2 text-xs border rounded-lg" /></div>
         </div>
-
         <div id="addSubmitStatus" class="text-xs font-bold text-center py-1 hidden"></div>
-
-        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-          <button type="button" onclick="closeAddRoutingModal()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
-            Batal
-          </button>
-          <button type="submit" id="btnSubmitRouting" class="px-5 py-2 rounded-lg text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 transition shadow flex items-center gap-1.5">
-            <i class="fa-solid fa-paper-plane"></i> Simpan Routing
-          </button>
+        <div class="flex justify-end space-x-2 pt-2 border-t">
+          <button type="button" onclick="closeAddRoutingModal()" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-100">Batal</button>
+          <button type="submit" id="btnSubmitRouting" class="px-5 py-2 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-500">Simpan Routing</button>
         </div>
       </form>
-
     </div>
   </div>
 
@@ -427,44 +321,44 @@
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
-    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbxr22_scDEQhdBENRbTvrIMZSSfvuyLojvIIm-ZIESiz3up9y16BiiQrRett2nN7l5p/exec";
+    // URL DEPLOYMENT TERBARU ANDA
+    const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbysitNylqgryv9095Nhg91GR0t8Mk7hURv7OiWC8kkkVOSKbpCDAcv9u_E1Hp9cV0_l/exec";
     const DEFAULT_ARMADAS = ["NINJA", "MIJI", "GRANMAX", "RTI", "GRAND MAX", "PICK UP", "OAS-UTAMA"];
 
     let rawData = [];
     let orderDetailsData = [];
     let datesList = [];
     let currentDateIndex = 0;
+
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
+    let pickupImages = JSON.parse(localStorage.getItem('logistics_pickup_images') || '{}');
+    let activeModalContext = { customer: '', tanggal: '', armada: '' };
+    let activePreviewImageKey = '';
 
     window.addEventListener('DOMContentLoaded', () => {
       const today = new Date();
       document.getElementById('monthSelect').value = today.getMonth();
       document.getElementById('yearSelect').value = today.getFullYear();
+      document.getElementById('pickupMonthSelect').value = today.getMonth();
+      document.getElementById('pickupYearSelect').value = today.getFullYear();
       fetchSheetData();
     });
 
     function switchTab(tab) {
-      const viewDash = document.getElementById('viewDashboard');
-      const viewFilt = document.getElementById('viewFilter');
-      const btnDash = document.getElementById('tabDashboardBtn');
-      const btnFilt = document.getElementById('tabFilterBtn');
+      const views = { dashboard: 'viewDashboard', filter: 'viewFilter', pickup: 'viewPickup' };
+      const btns = { dashboard: 'tabDashboardBtn', filter: 'tabFilterBtn', pickup: 'tabPickupBtn' };
+      const activeCls = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow";
+      const inactiveCls = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2";
 
-      if (tab === 'dashboard') {
-        viewDash.classList.remove('hidden');
-        viewFilt.classList.add('hidden');
-        btnDash.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow";
-        btnFilt.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2";
-      } else {
-        viewDash.classList.add('hidden');
-        viewFilt.classList.remove('hidden');
-        btnFilt.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-amber-500 text-slate-900 shadow";
-        btnDash.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-200 hover:text-white transition flex items-center gap-2";
-      }
+      Object.keys(views).forEach(k => {
+        document.getElementById(views[k]).classList.toggle('hidden', k !== tab);
+        document.getElementById(btns[k]).className = (k === tab) ? activeCls : inactiveCls;
+      });
+      if (tab === 'pickup') renderPickupCalendar();
     }
 
     function cleanString(str) {
-      if (!str) return '';
-      return String(str).toLowerCase().replace(/[^a-z0-9]/g, '');
+      return str ? String(str).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
     }
 
     function normalizeDateString(dateStr) {
@@ -472,12 +366,9 @@
       const str = String(dateStr).trim();
       const parts = str.split(/[-/.]/);
       if (parts.length === 3) {
-        let day, month, year;
-        if (parts[0].length === 4) {
-          year = parts[0]; month = parts[1]; day = parts[2];
-        } else {
-          day = parts[0]; month = parts[1]; year = parts[2];
-        }
+        let day = parts[0].length === 4 ? parts[2] : parts[0];
+        let month = parts[1];
+        let year = parts[0].length === 4 ? parts[0] : parts[2];
         return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`;
       }
       return str;
@@ -487,89 +378,74 @@
       const badge = document.getElementById('syncBadge');
       badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
 
-      const fetchJadwal = new Promise(resolve => {
-        Papa.parse(CSV_JADWAL_URL, {
-          download: true, header: true, skipEmptyLines: true,
-          complete: res => resolve(res.data || []), error: () => resolve([])
-        });
+      const p1 = new Promise(r => Papa.parse(CSV_JADWAL_URL, { download: true, header: true, skipEmptyLines: true, complete: res => r(res.data || []), error: () => r([]) }));
+      const p2 = new Promise(r => Papa.parse(CSV_ORDER_URL, { download: true, header: true, skipEmptyLines: true, complete: res => r(res.data || []), error: () => r([]) }));
+      const p3 = new Promise(r => Papa.parse(CSV_TAMBAHAN_URL, { download: true, header: true, skipEmptyLines: true, complete: res => r(res.data || []), error: () => r([]) }));
+
+      Promise.all([p1, p2, p3]).then(([jadwalData, orderData, tambahanData]) => {
+        processOrderDetailsData(orderData);
+        processRawData(jadwalData, tambahanData);
+        renderOutstandingTable();
+        const timeStamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
+      }).catch(() => {
+        badge.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-400"></i> Sync Failed`;
       });
-
-      const fetchOrders = new Promise(resolve => {
-        Papa.parse(CSV_ORDER_URL, {
-          download: true, header: true, skipEmptyLines: true,
-          complete: res => resolve(res.data || []), error: () => resolve([])
-        });
-      });
-
-      const fetchTambahan = new Promise(resolve => {
-        Papa.parse(CSV_TAMBAHAN_URL, {
-          download: true, header: true, skipEmptyLines: true,
-          complete: res => resolve(res.data || []), error: () => resolve([])
-        });
-      });
-
-      Promise.all([fetchJadwal, fetchOrders, fetchTambahan])
-        .then(([jadwalData, orderData, tambahanData]) => {
-          processOrderDetailsData(orderData);
-          processRawData(jadwalData, tambahanData);
-          renderOutstandingTable();
-
-          const now = new Date();
-          const timeStamp = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-          badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
-        })
-        .catch(() => showError());
     }
 
     function processOrderDetailsData(data) {
       orderDetailsData = [];
       data.forEach(item => {
-        const parsed = extractRowFields(item);
-        if (parsed.TanggalKirim || parsed.NamaCustomer) {
-          orderDetailsData.push(parsed);
-        }
+        const getVal = keys => { for (let k of keys) if (item[k] !== undefined && String(item[k]).trim() !== '') return String(item[k]).trim(); return ''; };
+        const parseNum = val => parseFloat(String(val || '0').replace(/[^0-9.-]/g, '')) || 0;
+        const parsed = {
+          TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
+          NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
+          TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
+          NoPO: getVal(['NO PO', 'PO Number']) || '-',
+          Status: getVal(['Status', 'F', 'status']) || '-',
+          Armada: getVal(['Armada']) || '-',
+          NamaBarang: getVal(['Product Name', 'Nama Barang', 'O']) || '-',
+          KodeBarang: getVal(['Product Code', 'Kode Barang', 'P']) || '-',
+          Unit: getVal(['Unit', 'Q']) || 'Pack',
+          Qty: parseNum(getVal(['Qty', 'R'])),
+          DeliveredQty: parseNum(getVal(['Delivered Qty', 'S'])),
+          OutstandingQty: parseNum(getVal(['Outstanding Qty', 'T'])),
+          Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
+        };
+        if (parsed.TanggalKirim || parsed.NamaCustomer) orderDetailsData.push(parsed);
       });
     }
 
-    function extractRowFields(item) {
-      const getVal = (keys) => {
-        for (let k of keys) {
-          if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
-            return String(item[k]).trim();
-          }
-        }
-        return '';
-      };
-
-      const parseNum = (val) => {
-        if (!val) return 0;
-        const cleaned = String(val).replace(/[^0-9.-]/g, '');
-        return parseFloat(cleaned) || 0;
-      };
-
-      return {
-        TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
-        NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
-        TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
-        NoPO: getVal(['NO PO', 'PO Number']) || '-',
-        Status: getVal(['Status', 'F', 'status']) || '-',
-        Armada: getVal(['Armada']) || '-',
-        NamaBarang: getVal(['Product Name', 'Nama Barang', 'O']) || '-',
-        KodeBarang: getVal(['Product Code', 'Kode Barang', 'P']) || '-',
-        Unit: getVal(['Unit', 'Q']) || 'Pack',
-        Qty: parseNum(getVal(['Qty', 'R'])),
-        DeliveredQty: parseNum(getVal(['Delivered Qty', 'S'])),
-        OutstandingQty: parseNum(getVal(['Outstanding Qty', 'T'])),
-        Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
-      };
-    }
-
     function processRawData(jadwalData, tambahanData = []) {
-      const parsedJadwal = jadwalData.map(item => parseRowItem(item));
-      const parsedTambahan = tambahanData.map(item => parseRowItem(item));
+      const parseItem = item => {
+        const rawDate = (item['Tanggal'] || '').trim();
+        const normDate = normalizeDateString(rawDate);
+        let parsedISO = null;
+        if (normDate) {
+          const p = normDate.split('-');
+          if (p.length === 3) parsedISO = `${p[2]}-${p[1]}-${p[0]}`;
+        }
+        let armadaName = (item['Armada'] || 'LAINNYA').trim().toUpperCase();
+        if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
+        if (armadaName === 'PICKUP') armadaName = 'PICK UP';
 
-      rawData = [...parsedJadwal, ...parsedTambahan].filter(row => row.Tanggal !== '' && row.Customer !== '' && row.Tanggal !== 'Tanggal');
+        return {
+          Tanggal: normDate || rawDate,
+          ISODate: parsedISO,
+          Customer: (item['Customer'] || '').trim(),
+          Armada: armadaName,
+          Daerah: (item['Daerah'] || '-').trim(),
+          TotalDokumen: parseInt(String(item['Dokumen'] || item['Total Dokumen'] || '1').replace(/[^0-9]/g, '')) || 1,
+          TotalBerat: parseInt(String(item['Total berat'] || item['Berat'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Cost: parseInt(String(item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Value: parseInt(String(item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
+          Keterangan: (item['Keterangan'] || '').trim(),
+          Status: (item['Status'] || '').trim() || 'Pending'
+        };
+      };
 
+      rawData = [...jadwalData.map(parseItem), ...tambahanData.map(parseItem)].filter(r => r.Tanggal && r.Customer && r.Tanggal !== 'Tanggal');
       datesList = [...new Set(rawData.map(item => item.Tanggal))];
       populateFilters();
 
@@ -577,161 +453,26 @@
         currentDateIndex = 0;
         renderDashboard();
         renderCalendarDashboard();
+        renderPickupCalendar();
       }
     }
 
-    function parseRowItem(item) {
-      const rawDate = (item['Tanggal'] || '').trim();
-      const normDate = normalizeDateString(rawDate);
-      let parsedISO = null;
-
-      if (normDate) {
-        const parts = normDate.split('-');
-        if (parts.length === 3) {
-          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-
-      const rawDokumen = item['Dokumen'] || item['Total Dokumen'] || item['Total dok'] || '1 Dok';
-      const parsedDokumen = parseInt(String(rawDokumen).replace(/[^0-9]/g, '')) || 1;
-      const rawBerat = item['Total berat'] || item['Berat'] || '0';
-      const parsedBerat = parseInt(String(rawBerat).replace(/[^0-9]/g, '')) || 0;
-      const rawCost = item['Cost'] || '0';
-      const parsedCost = parseInt(String(rawCost).replace(/[^0-9]/g, '')) || 0;
-      const rawValue = item['Value'] || '0';
-      const parsedValue = parseInt(String(rawValue).replace(/[^0-9]/g, '')) || 0;
-
-      let armadaName = (item['Armada'] || 'LAINNYA').trim().toUpperCase();
-      if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
-
-      return {
-        Tanggal: normDate || rawDate,
-        ISODate: parsedISO,
-        Customer: (item['Customer'] || '').trim(),
-        Armada: armadaName,
-        Daerah: (item['Daerah'] || '-').trim(),
-        TotalDokumen: parsedDokumen,
-        TotalBerat: parsedBerat,
-        Cost: parsedCost,
-        Value: parsedValue
-      };
-    }
-
-    // LOGIKA PERBAIKAN & OPTIMASI PERFORMA TABEL OUTSTANDING
-    function renderOutstandingTable() {
-      const tbody = document.getElementById('outstandingTableBody');
-      const badgeCount = document.getElementById('outstandingBadgeCount');
-      const filterSelect = document.getElementById('statusFilterSelect');
-
-      if (!tbody || !badgeCount) return;
-
-      const selectedStatus = filterSelect ? filterSelect.value : 'ALL_OUTSTANDING';
-
-      // 1. FILTER DATA
-      let filteredItems = orderDetailsData.filter(item => {
-        const statusLower = (item.Status || '').toLowerCase().trim();
-        const isBelumTerkirim = statusLower.includes('belum') || statusLower.includes('pending') || statusLower.includes('unfulfilled');
-        const isPartial = statusLower.includes('partial');
-
-        if (selectedStatus === 'BELUM_TERKIRIM') {
-          return isBelumTerkirim;
-        } else if (selectedStatus === 'PARTIAL') {
-          return isPartial;
-        } else {
-          // ALL_OUTSTANDING
-          const isClosed = statusLower.includes('closed') || statusLower.includes('terkirim') || statusLower.includes('done') || statusLower.includes('complete');
-          return (isBelumTerkirim || isPartial || item.OutstandingQty > 0) && !isClosed;
-        }
-      });
-
-      // 2. SORTING BERDASARKAN TANGGAL (Kronologis terlama -> terbaru)
-      filteredItems.sort((a, b) => {
-        const parseDate = (dStr) => {
-          if (!dStr) return 0;
-          const parts = dStr.split('-');
-          if (parts.length === 3) {
-            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
-          }
-          return 0;
-        };
-        return parseDate(a.TanggalKirim) - parseDate(b.TanggalKirim);
-      });
-
-      badgeCount.innerText = filteredItems.length;
-
-      if (filteredItems.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="9" class="py-6 text-center text-slate-400 font-medium">
-              <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-2 block"></i>
-              Tidak ada data PO yang cocok untuk opsi status ini.
-            </td>
-          </tr>`;
-        return;
-      }
-
-      // 3. OPTIMASI STRING BUILDER (Cepat & Anti-Lag)
-      let rowsHtml = '';
-      filteredItems.forEach((row, idx) => {
-        const docKey = row.TransactionNumber || `DOC-${idx}`;
-        const currentNote = orderNotes[docKey] !== undefined ? orderNotes[docKey] : (row.Note || '');
-
-        const cleanCust = cleanString(row.NamaCustomer);
-        const matchedRaw = rawData.find(r => cleanString(r.Customer).includes(cleanCust) || cleanCust.includes(cleanString(r.Customer)));
-        const daerahText = matchedRaw ? matchedRaw.Daerah : '-';
-
-        let statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Belum Terkirim</span>`;
-        if ((row.Status || '').toLowerCase().includes('partial')) {
-          statusBadge = `<span class="bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-extrabold text-[10px]">Partial Fulfillment</span>`;
-        }
-
-        const safeCust = (row.NamaCustomer || '').replace(/'/g, "\\'");
-        const safeTgl = (row.TanggalKirim || '').replace(/'/g, "\\'");
-        const safeArmada = (row.Armada || '').replace(/'/g, "\\'");
-
-        rowsHtml += `
-          <tr class="hover:bg-amber-50/50 transition border-b border-slate-100">
-            <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
-            <td class="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">${row.TanggalKirim}</td>
-            <td class="py-2.5 px-3 font-bold text-indigo-950">${row.NamaCustomer}</td>
-            <td class="py-2.5 px-3 font-semibold text-slate-600">${daerahText}</td>
-            <td class="py-2.5 px-3 font-mono font-bold text-indigo-700 whitespace-nowrap cursor-pointer hover:underline" onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')">
-              <i class="fa-solid fa-file-invoice text-indigo-500 mr-1"></i> ${row.TransactionNumber}
-              <span class="block text-[10px] text-slate-400 font-sans font-normal">PO: ${row.NoPO}</span>
-            </td>
-            <td class="py-2.5 px-3 text-center">${statusBadge}</td>
-            <td class="py-2.5 px-3 text-center font-black text-rose-600">${row.OutstandingQty.toLocaleString('id-ID')} ${row.Unit}</td>
-            <td class="py-2.5 px-3">
-              <input 
-                type="text" 
-                value="${currentNote}" 
-                placeholder="Tambah catatan..." 
-                class="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                onchange="saveNote('${docKey}', this.value)"
-              />
-            </td>
-            <td class="py-2.5 px-3 text-center">
-              <button onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition shadow-2xs flex items-center gap-1 mx-auto">
-                <i class="fa-solid fa-eye"></i> Detail
-              </button>
-            </td>
-          </tr>`;
-      });
-
-      tbody.innerHTML = rowsHtml;
-    }
-
+    // =========================================================================
+    // MODAL DETAIL BARANG & SIMPAN KETERANGAN KE SHEETS (KOLOM I)
+    // =========================================================================
     function openDocumentModal(customerName, tanggalStr, armadaName) {
-      const modal = document.getElementById('documentModal');
-      const modalLoading = document.getElementById('modalLoading');
-      const modalContent = document.getElementById('modalContent');
-
+      activeModalContext = { customer: customerName, tanggal: tanggalStr, armada: armadaName };
       document.getElementById('modalCustomerName').innerText = customerName;
       document.getElementById('modalSubTitle').innerText = `Jadwal Kirim: ${tanggalStr} | Armada: ${armadaName}`;
+      document.getElementById('modalKeteranganSaveStatus').classList.add('hidden');
 
-      modal.classList.remove('hidden');
-      modalLoading.classList.remove('hidden');
-      modalContent.classList.add('hidden');
+      // Ambil nilai Keterangan eksisting dari rawData (Jadwal Harian Kolom I)
+      const matchedRow = rawData.find(r => cleanString(r.Customer) === cleanString(customerName) && r.Tanggal === normalizeDateString(tanggalStr));
+      document.getElementById('modalKeteranganInput').value = matchedRow ? (matchedRow.Keterangan || '') : '';
+
+      document.getElementById('documentModal').classList.remove('hidden');
+      document.getElementById('modalLoading').classList.remove('hidden');
+      document.getElementById('modalContent').classList.add('hidden');
 
       setTimeout(() => {
         const cleanTargetCust = cleanString(customerName);
@@ -741,8 +482,7 @@
           const cleanItemCust = cleanString(item.NamaCustomer);
           const custMatch = cleanItemCust.includes(cleanTargetCust) || cleanTargetCust.includes(cleanItemCust);
           const itemDate = normalizeDateString(item.TanggalKirim);
-          const dateMatch = !normTargetDate || !itemDate || (itemDate === normTargetDate);
-          return custMatch && dateMatch;
+          return custMatch && (!normTargetDate || !itemDate || itemDate === normTargetDate);
         });
 
         if (matchedItems.length === 0) {
@@ -752,201 +492,110 @@
           });
         }
 
-        renderModalTable(matchedItems);
-        modalLoading.classList.add('hidden');
-        modalContent.classList.remove('hidden');
+        renderModalTable(matchedItems, matchedRow ? matchedRow.Keterangan : '');
+        document.getElementById('modalLoading').classList.add('hidden');
+        document.getElementById('modalContent').classList.remove('hidden');
       }, 50);
     }
 
-    function renderModalTable(items) {
+    function renderModalTable(items, jadwalKeterangan = '') {
       const tbody = document.getElementById('modalTableBody');
-      tbody.innerHTML = '';
-
       if (items.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="10" class="py-8 text-center text-slate-400 font-medium">
-              <i class="fa-solid fa-file-excel text-2xl mb-2 text-slate-300 block"></i>
-              Tidak ada rincian item barang yang ditemukan di Sheet INPUT ORDER untuk tanggal dan customer ini.
-            </td>
-          </tr>`;
-        document.getElementById('modalDocCountBadge').innerText = 0;
-        document.getElementById('modalTotalQtyBadge').innerText = 0;
-        document.getElementById('modalTotalDeliveredBadge').innerText = 0;
-        document.getElementById('modalTotalOutstandingBadge').innerText = 0;
+        tbody.innerHTML = `<tr><td colspan="11" class="py-8 text-center text-slate-400">Tidak ada rincian item barang di Sheet INPUT ORDER.</td></tr>`;
         return;
       }
 
       const docNums = [...new Set(items.map(i => i.TransactionNumber).filter(Boolean))];
-      const totalQty = items.reduce((sum, i) => sum + i.Qty, 0);
-      const totalDelivered = items.reduce((sum, i) => sum + i.DeliveredQty, 0);
-      const totalOutstanding = items.reduce((sum, i) => sum + i.OutstandingQty, 0);
-
       document.getElementById('modalDocCountBadge').innerText = docNums.length || items.length;
-      document.getElementById('modalTotalQtyBadge').innerText = totalQty.toLocaleString('id-ID');
-      document.getElementById('modalTotalDeliveredBadge').innerText = totalDelivered.toLocaleString('id-ID');
-      document.getElementById('modalTotalOutstandingBadge').innerText = totalOutstanding.toLocaleString('id-ID');
+      document.getElementById('modalTotalQtyBadge').innerText = items.reduce((s, i) => s + i.Qty, 0).toLocaleString('id-ID');
+      document.getElementById('modalTotalDeliveredBadge').innerText = items.reduce((s, i) => s + i.DeliveredQty, 0).toLocaleString('id-ID');
+      document.getElementById('modalTotalOutstandingBadge').innerText = items.reduce((s, i) => s + i.OutstandingQty, 0).toLocaleString('id-ID');
 
-      let rowsHtml = '';
-      items.forEach((row, idx) => {
-        let statusColor = 'bg-slate-100 text-slate-700';
+      tbody.innerHTML = items.map((row, idx) => {
         const st = (row.Status || '').toLowerCase();
-        if (st.includes('terkirim') || st.includes('closed') || st.includes('done')) {
-          statusColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-        } else if (st.includes('partial') || st.includes('belum')) {
-          statusColor = 'bg-rose-100 text-rose-800 border border-rose-200';
-        }
-
-        rowsHtml += `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
+        const stCls = (st.includes('terkirim') || st.includes('closed')) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+        const ketText = jadwalKeterangan || row.Note || '-';
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-3 text-center text-slate-400">${idx + 1}</td>
             <td class="py-3 px-3 font-mono font-bold text-indigo-900 whitespace-nowrap">${row.TransactionNumber}</td>
             <td class="py-3 px-3 font-mono text-slate-600">${row.NoPO}</td>
             <td class="py-3 px-3 font-mono text-slate-500">${row.KodeBarang}</td>
             <td class="py-3 px-3 font-semibold text-slate-800">${row.NamaBarang}</td>
             <td class="py-3 px-3 text-center font-bold text-slate-500">${row.Unit}</td>
-            <td class="py-3 px-3 text-center font-bold text-slate-800">${row.Qty.toLocaleString('id-ID')}</td>
+            <td class="py-3 px-3 text-center font-bold">${row.Qty.toLocaleString('id-ID')}</td>
             <td class="py-3 px-3 text-center font-bold text-emerald-600">${row.DeliveredQty.toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3 text-center font-bold ${row.OutstandingQty > 0 ? 'text-rose-600' : 'text-slate-400'}">${row.OutstandingQty.toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3 text-center">
-              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block ${statusColor}">
-                ${row.Status}
-              </span>
-            </td>
+            <td class="py-3 px-3 text-center font-bold text-rose-600">${row.OutstandingQty.toLocaleString('id-ID')}</td>
+            <td class="py-3 px-3 text-center"><span class="px-2 py-1 rounded-full text-[11px] font-bold ${stCls}">${row.Status}</span></td>
+            <td class="py-3 px-3 font-semibold text-amber-900 bg-amber-50/50">${ketText}</td>
           </tr>`;
+      }).join('');
+    }
+
+    function saveKeteranganFromModal() {
+      const btn = document.getElementById('btnSaveKeterangan');
+      const statusEl = document.getElementById('modalKeteranganSaveStatus');
+      const newKet = document.getElementById('modalKeteranganInput').value.trim();
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
+
+      // Update di memori lokal langsung
+      rawData.forEach(r => {
+        if (cleanString(r.Customer) === cleanString(activeModalContext.customer) && r.Tanggal === normalizeDateString(activeModalContext.tanggal)) {
+          r.Keterangan = newKet;
+        }
       });
-      tbody.innerHTML = rowsHtml;
+
+      // Kirim ke Google Sheets (Jadwal Harian Kolom I)
+      const url = new URL(WEBHOOK_API_URL);
+      url.searchParams.append('action', 'update_jadwal');
+      url.searchParams.append('Tanggal', normalizeDateString(activeModalContext.tanggal));
+      url.searchParams.append('Customer', activeModalContext.customer);
+      url.searchParams.append('Armada', activeModalContext.armada);
+      url.searchParams.append('Keterangan', newKet);
+
+      fetch(url.toString(), { method: 'POST', mode: 'no-cors' })
+        .finally(() => {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan Keterangan`;
+          statusEl.classList.remove('hidden');
+          // Perbarui kolom keterangan di tabel modal
+          document.querySelectorAll('#modalTableBody tr td:last-child').forEach(td => td.innerText = newKet || '-');
+          renderCalendarDashboard();
+        });
     }
 
     function closeDocumentModal() {
       document.getElementById('documentModal').classList.add('hidden');
     }
 
-    function openAddRoutingModal(armadaName, dateFormatted) {
-      document.getElementById('addArmadaTarget').value = armadaName;
-      document.getElementById('addDateTarget').value = dateFormatted || '';
-      document.getElementById('addRoutingModal').classList.remove('hidden');
-      document.getElementById('addCustomer').value = '';
-      document.getElementById('addDaerah').value = '';
-      document.getElementById('addDokumen').value = '1 Dok';
-      document.getElementById('addCost').value = '';
-      document.getElementById('addValue').value = '';
-      
-      const statusDiv = document.getElementById('addSubmitStatus');
-      statusDiv.classList.add('hidden');
-      statusDiv.className = 'text-xs font-bold text-center py-1 hidden';
-    }
-
-    function closeAddRoutingModal() {
-      document.getElementById('addRoutingModal').classList.add('hidden');
-    }
-
-    function submitTambahanRouting(event) {
-      event.preventDefault();
-      
-      const btn = document.getElementById('btnSubmitRouting');
-      const statusDiv = document.getElementById('addSubmitStatus');
-
-      const customer = document.getElementById('addCustomer').value.trim();
-      const daerah = document.getElementById('addDaerah').value.trim() || '-';
-      const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
-      const cost = parseInt(document.getElementById('addCost').value) || 0;
-      const value = parseInt(document.getElementById('addValue').value) || 0;
-      let armadaTarget = (document.getElementById('addArmadaTarget').value || 'NINJA').toUpperCase();
-      if (armadaTarget === 'GRAND MAX') armadaTarget = 'GRANMAX';
-      const targetDate = document.getElementById('addDateTarget').value || '';
-
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
-
-      let parsedISO = null;
-      if (targetDate) {
-        const parts = targetDate.split('-');
-        if (parts.length === 3) {
-          parsedISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-
-      const newItem = {
-        Tanggal: targetDate,
-        ISODate: parsedISO,
-        Customer: customer,
-        Armada: armadaTarget,
-        Daerah: daerah,
-        TotalDokumen: parseInt(dokumen.replace(/[^0-9]/g, '')) || 1,
-        TotalBerat: 0,
-        Cost: cost,
-        Value: value
-      };
-
-      rawData.push(newItem);
-      renderDashboard();
-      renderCalendarDashboard();
-
-      const targetUrl = new URL(WEBHOOK_API_URL);
-      targetUrl.searchParams.append('Tanggal', targetDate);
-      targetUrl.searchParams.append('Customer', customer);
-      targetUrl.searchParams.append('Armada', armadaTarget);
-      targetUrl.searchParams.append('Daerah', daerah);
-      targetUrl.searchParams.append('Dokumen', dokumen);
-      targetUrl.searchParams.append('Cost', cost);
-      targetUrl.searchParams.append('Value', value);
-
-      fetch(targetUrl.toString(), {
-        method: 'POST',
-        mode: 'no-cors'
-      })
-      .then(() => {
-        statusDiv.innerText = '✓ Routing berhasil disimpan ke Google Sheets!';
-        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
-        setTimeout(() => {
-          closeAddRoutingModal();
-          btn.disabled = false;
-          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
-        }, 800);
-      })
-      .catch(() => {
-        statusDiv.innerText = '✓ Routing tersimpan!';
-        statusDiv.className = 'text-xs font-bold text-center py-1 text-emerald-600 block';
-        setTimeout(() => {
-          closeAddRoutingModal();
-          btn.disabled = false;
-          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Simpan Routing`;
-        }, 800);
-      });
-    }
-
-    function saveNote(docKey, noteText) {
-      orderNotes[docKey] = noteText;
-      localStorage.setItem('logistics_order_notes', JSON.stringify(orderNotes));
-    }
-
-    function toggleOutstandingSection() {
-      const content = document.getElementById('outstandingContent');
-      const icon = document.getElementById('outstandingArrowIcon');
-      content.classList.toggle('hidden');
-      icon.classList.toggle('rotate-180');
-    }
-
-    function showError() {
-      document.getElementById('syncBadge').innerHTML = `<i class="fa-solid fa-circle-xmark text-red-400"></i> Sync Failed`;
-    }
-
-    function toggleArmadaDetails(detailsId) {
-      const el = document.getElementById(detailsId);
-      if (el) el.classList.toggle('hidden');
-    }
-
-    // OPTIMASI KALENDER AGAR TIDAK LAG
+    // =========================================================================
+    // HALAMAN 1: KALENDER MATRIX SEMUA ARMADA
+    // =========================================================================
     function renderCalendarDashboard() {
-      const calendarContainer = document.getElementById('calendarMatrixContainer');
+      const container = document.getElementById('calendarMatrixContainer');
       const selectedMonth = parseInt(document.getElementById('monthSelect').value);
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
+      container.innerHTML = buildWeeklyMatrixHTML(selectedMonth, selectedYear, false);
+    }
 
+    // =========================================================================
+    // HALAMAN 3: KALENDER MATRIX KHUSUS PICK UP + EDIT STATUS + GAMBAR WEB ONLY
+    // =========================================================================
+    function renderPickupCalendar() {
+      const container = document.getElementById('pickupCalendarContainer');
+      const selectedMonth = parseInt(document.getElementById('pickupMonthSelect').value);
+      const selectedYear = parseInt(document.getElementById('pickupYearSelect').value);
+      container.innerHTML = buildWeeklyMatrixHTML(selectedMonth, selectedYear, true);
+    }
+
+    function buildWeeklyMatrixHTML(selectedMonth, selectedYear, isPickupOnly) {
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-      
       const dataByDate = {};
+
       rawData.forEach(item => {
+        if (isPickupOnly && item.Armada !== 'PICK UP') return;
         if (item.ISODate) {
           const d = new Date(item.ISODate);
           if (d.getMonth() === selectedMonth && d.getFullYear() === selectedYear) {
@@ -957,358 +606,380 @@
         }
       });
 
-      let weeks = [];
-      let currentWeek = [];
-
+      let weeks = [], currentWeek = [];
       for (let day = 1; day <= daysInMonth; day++) {
         const dateObj = new Date(selectedYear, selectedMonth, day);
-        let dayOfWeek = dateObj.getDay(); 
-        currentWeek.push({ dayNumber: day, dateObj: dateObj, dayOfWeek: dayOfWeek, items: dataByDate[day] || [] });
-        if (dayOfWeek === 0 || day === daysInMonth) {
-          weeks.push(currentWeek);
-          currentWeek = [];
-        }
+        const dayOfWeek = dateObj.getDay();
+        currentWeek.push({ dayNumber: day, dayOfWeek, items: dataByDate[day] || [] });
+        if (dayOfWeek === 0 || day === daysInMonth) { weeks.push(currentWeek); currentWeek = []; }
       }
 
       const dayNamesHeader = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU"];
       let allWeeksHtml = '';
 
       weeks.forEach((weekData, index) => {
-        const weekNum = index + 1;
         let dayColsHtml = '';
-        
         for (let dayIndex = 1; dayIndex <= 7; dayIndex++) {
           const targetDayOfWeek = dayIndex === 7 ? 0 : dayIndex;
           const dayMatch = weekData.find(w => w.dayOfWeek === targetDayOfWeek);
+          if (!dayMatch) continue;
 
-          if (dayMatch) {
-            const dateStrFormatted = `${String(dayMatch.dayNumber).padStart(2, '0')}/${String(selectedMonth + 1).padStart(2, '0')}`;
-            const targetFullDate = `${String(dayMatch.dayNumber).padStart(2, '0')}-${String(selectedMonth + 1).padStart(2, '0')}-${selectedYear}`;
+          const dateStrFormatted = `${String(dayMatch.dayNumber).padStart(2, '0')}/${String(selectedMonth + 1).padStart(2, '0')}`;
+          const targetFullDate = `${String(dayMatch.dayNumber).padStart(2, '0')}-${String(selectedMonth + 1).padStart(2, '0')}-${selectedYear}`;
 
-            const armadaGroup = {};
-            DEFAULT_ARMADAS.forEach(arm => {
-              const normArm = arm === 'GRAND MAX' ? 'GRANMAX' : arm;
-              if (!armadaGroup[normArm]) armadaGroup[normArm] = [];
-            });
+          const armadaGroup = {};
+          const targetArmadas = isPickupOnly ? ["PICK UP"] : DEFAULT_ARMADAS;
+          targetArmadas.forEach(arm => {
+            const norm = arm === 'GRAND MAX' ? 'GRANMAX' : arm;
+            if (!armadaGroup[norm]) armadaGroup[norm] = [];
+          });
 
-            dayMatch.items.forEach(it => {
-              let armKey = it.Armada.toUpperCase();
-              if (armKey === 'GRAND MAX') armKey = 'GRANMAX';
-              if (!armadaGroup[armKey]) armadaGroup[armKey] = [];
-              armadaGroup[armKey].push(it);
-            });
+          dayMatch.items.forEach(it => {
+            let armKey = it.Armada.toUpperCase();
+            if (armKey === 'GRAND MAX') armKey = 'GRANMAX';
+            if (!armadaGroup[armKey]) armadaGroup[armKey] = [];
+            armadaGroup[armKey].push(it);
+          });
 
-            let armadaListHtml = '';
-            Object.keys(armadaGroup).forEach((armName, aIdx) => {
-              const list = armadaGroup[armName];
-              const totalBeratArmada = list.reduce((sum, item) => sum + item.TotalBerat, 0);
-              const detailsId = `details-${dayMatch.dayNumber}-${aIdx}`;
+          let armadaListHtml = '';
+          Object.keys(armadaGroup).forEach((armName, aIdx) => {
+            const list = armadaGroup[armName];
+            const totalBerat = list.reduce((s, i) => s + i.TotalBerat, 0);
+            const detailsId = `${isPickupOnly ? 'pu' : 'all'}-details-${dayMatch.dayNumber}-${aIdx}`;
 
-              if (list.length > 0) {
-                list.sort((a, b) => a.Daerah.localeCompare(b.Daerah, 'id', { sensitivity: 'base' }));
+            if (list.length > 0) {
+              list.sort((a, b) => a.Daerah.localeCompare(b.Daerah, 'id', { sensitivity: 'base' }));
 
-                let customerListRows = '';
-                list.forEach(row => {
-                  const safeCust = row.Customer.replace(/'/g, "\\'");
-                  const safeTgl = row.Tanggal.replace(/'/g, "\\'");
-                  const safeArmada = row.Armada.replace(/'/g, "\\'");
-                  
-                  customerListRows += `
-                    <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100 group">
-                      <td class="py-2 px-2.5 font-semibold text-indigo-950 group-hover:text-indigo-700 leading-tight whitespace-nowrap min-w-[130px]">
-                        ${row.Customer}
-                      </td>
-                      <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 leading-tight whitespace-nowrap min-w-[120px]">
-                        ${row.Daerah}
-                      </td>
-                      <td class="py-2 px-1 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
-                        <span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">
-                          ${row.TotalDokumen} Dok
-                        </span>
-                      </td>
-                      <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap min-w-[85px]">
-                        ${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}
-                      </td>
-                      <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap min-w-[90px]">
-                        ${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}
-                      </td>
-                    </tr>`;
-                });
+              const customerRows = list.map(row => {
+                const safeCust = row.Customer.replace(/'/g, "\\'");
+                const safeTgl = row.Tanggal.replace(/'/g, "\\'");
+                const safeArm = row.Armada.replace(/'/g, "\\'");
+                const imgKey = `${row.Tanggal}_${cleanString(row.Customer)}`;
+                const hasImg = !!pickupImages[imgKey];
 
-                armadaListHtml += `
-                  <div class="mb-2 bg-indigo-50/50 rounded-lg border border-indigo-100 overflow-hidden shadow-2xs">
-                    <div class="px-2.5 py-1.5 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/60 transition gap-2" onclick="toggleArmadaDetails('${detailsId}')">
-                      <div class="flex items-center space-x-1.5 text-indigo-950 whitespace-nowrap">
-                        <i class="fa-solid fa-chevron-right text-[9px] text-indigo-400 flex-shrink-0"></i>
-                        <i class="fa-solid fa-truck text-indigo-700 text-[11px] flex-shrink-0"></i>
-                        <span class="font-extrabold uppercase tracking-tight">${armName}</span>
-                        <span class="bg-indigo-600 text-white min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0">${list.length}</span>
-                      </div>
-                      <div class="flex items-center space-x-1.5 flex-shrink-0">
-                        <span class="text-indigo-950 font-extrabold text-[10px] whitespace-nowrap">
-                          ${totalBeratArmada > 0 ? totalBeratArmada.toLocaleString('id-ID') + ' gr' : '0 gr'}
-                        </span>
-                        <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-xs font-black text-[9px] flex-shrink-0">
-                          <i class="fa-solid fa-plus"></i>
-                        </button>
-                      </div>
+                // Kolom Tambahan Khusus Halaman 3 (Status Dropdown + Upload/Preview Foto Web Only)
+                const pickupExtraCols = isPickupOnly ? `
+                  <td class="py-2 px-2 whitespace-nowrap" onclick="event.stopPropagation()">
+                    <select onchange="updatePickupStatus('${safeCust}', '${safeTgl}', '${safeArm}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-950 focus:outline-none">
+                      <option value="Pending" ${row.Status === 'Pending' ? 'selected' : ''}>Pending</option>
+                      <option value="Proses Pick Up" ${row.Status === 'Proses Pick Up' ? 'selected' : ''}>Proses Pick Up</option>
+                      <option value="Selesai" ${row.Status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+                      <option value="Batal" ${row.Status === 'Batal' ? 'selected' : ''}>Batal</option>
+                    </select>
+                  </td>
+                  <td class="py-2 px-2 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                    <div class="flex items-center justify-center gap-1">
+                      <label class="cursor-pointer bg-slate-200 hover:bg-amber-400 text-slate-800 px-2 py-1 rounded text-[10px] font-bold transition" title="Upload Foto (Web Only)">
+                        <i class="fa-solid fa-camera"></i>
+                        <input type="file" accept="image/*" class="hidden" onchange="handlePickupImageUpload(event, '${imgKey}')" />
+                      </label>
+                      ${hasImg ? `<button onclick="openImagePreviewModal('${imgKey}', '${safeCust}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold" title="Lihat Foto"><i class="fa-solid fa-eye"></i></button>` : ''}
                     </div>
+                  </td>` : '';
 
-                    <div id="${detailsId}" class="hidden border-t border-indigo-100 bg-white">
-                      <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs min-w-[420px]">
-                          <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b border-slate-200">
-                            <tr>
-                              <th class="py-1.5 px-2.5">Customer</th>
-                              <th class="py-1.5 px-2">Daerah</th>
-                              <th class="py-1.5 px-1 text-center">Dok</th>
-                              <th class="py-1.5 px-2 text-right">Cost</th>
-                              <th class="py-1.5 px-2 text-right">Value</th>
-                            </tr>
-                          </thead>
-                          <tbody>${customerListRows}</tbody>
-                        </table>
-                      </div>
-                      <div class="p-1.5 bg-slate-50 border-t border-slate-100 flex justify-end">
-                        <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="text-[10px] font-bold text-indigo-900 bg-amber-400 hover:bg-amber-500 px-2 py-0.5 rounded transition flex items-center gap-1 shadow-2xs">
-                          <i class="fa-solid fa-plus"></i> Add
-                        </button>
-                      </div>
-                    </div>
-                  </div>`;
-              } else {
-                armadaListHtml += `
-                  <div class="mb-2 bg-white/60 rounded-lg border border-slate-200/60 px-2.5 py-1.5 flex justify-between items-center text-xs">
-                    <div class="flex items-center space-x-1.5 text-slate-400 whitespace-nowrap">
-                      <i class="fa-solid fa-chevron-right text-[9px] flex-shrink-0"></i>
-                      <i class="fa-solid fa-truck text-[11px] flex-shrink-0"></i>
-                      <span class="font-bold uppercase text-[10px] text-slate-400">${armName}</span>
-                    </div>
-                    <div class="flex items-center space-x-1.5 flex-shrink-0">
-                      <span class="italic text-[10px] text-slate-300">Kosong</span>
-                      <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" title="Tambah Routing ke Tambahan Routing" class="bg-indigo-50 hover:bg-amber-400 text-indigo-900 hover:text-slate-900 w-4 h-4 rounded-full flex items-center justify-center transition shadow-2xs font-black text-[9px] flex-shrink-0">
-                        <i class="fa-solid fa-plus"></i>
-                      </button>
-                    </div>
-                  </div>`;
-              }
-            });
+                return `
+                  <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100">
+                    <td class="py-2 px-2.5 font-semibold text-indigo-950 whitespace-nowrap">${row.Customer}</td>
+                    <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 whitespace-nowrap">${row.Daerah}</td>
+                    <td class="py-2 px-1 text-center font-mono font-bold whitespace-nowrap"><span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">${row.TotalDokumen} Dok</span></td>
+                    <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}</td>
+                    <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}</td>
+                    ${pickupExtraCols}
+                  </tr>`;
+              }).join('');
 
-            dayColsHtml += `
-              <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex-none w-[280px]">
-                <div>
-                  <div class="bg-indigo-950 text-white px-2.5 py-1.5 rounded-lg flex justify-between items-center mb-2.5">
-                    <span class="text-[11px] font-black tracking-wider text-amber-400">${dayNamesHeader[dayIndex - 1]}</span>
-                    <span class="bg-indigo-900 text-indigo-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border border-indigo-700">${dateStrFormatted}</span>
+              armadaListHtml += `
+                <div class="mb-2 bg-indigo-50/50 rounded-lg border border-indigo-100 overflow-hidden">
+                  <div class="px-2.5 py-1.5 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/60" onclick="document.getElementById('${detailsId}').classList.toggle('hidden')">
+                    <div class="flex items-center space-x-1.5 text-indigo-950">
+                      <i class="fa-solid fa-chevron-right text-[9px] text-indigo-400"></i>
+                      <i class="fa-solid fa-truck text-indigo-700 text-[11px]"></i>
+                      <span class="font-extrabold uppercase">${armName}</span>
+                      <span class="bg-indigo-600 text-white px-1.5 rounded-full text-[10px]">${list.length}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                      <span class="text-indigo-950 font-extrabold text-[10px]">${totalBerat.toLocaleString('id-ID')} gr</span>
+                      <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-4 h-4 rounded-full flex items-center justify-center text-[9px]"><i class="fa-solid fa-plus"></i></button>
+                    </div>
                   </div>
-                  ${armadaListHtml}
-                </div>
-              </div>`;
-          }
+                  <div id="${detailsId}" class="${isPickupOnly ? '' : 'hidden'} border-t border-indigo-100 bg-white overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs min-w-[420px]">
+                      <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b">
+                        <tr>
+                          <th class="py-1.5 px-2.5">Customer</th><th class="py-1.5 px-2">Daerah</th><th class="py-1.5 px-1 text-center">Dok</th>
+                          <th class="py-1.5 px-2 text-right">Cost</th><th class="py-1.5 px-2 text-right">Value</th>
+                          ${isPickupOnly ? '<th class="py-1.5 px-2">Status (Sheets)</th><th class="py-1.5 px-2 text-center">Foto (Web)</th>' : ''}
+                        </tr>
+                      </thead>
+                      <tbody>${customerRows}</tbody>
+                    </table>
+                  </div>
+                </div>`;
+            } else {
+              armadaListHtml += `
+                <div class="mb-2 bg-white/60 rounded-lg border border-slate-200/60 px-2.5 py-1.5 flex justify-between items-center text-xs">
+                  <span class="font-bold uppercase text-[10px] text-slate-400"><i class="fa-solid fa-truck mr-1"></i> ${armName}</span>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="italic text-[10px] text-slate-300">Kosong</span>
+                    <button onclick="openAddRoutingModal('${armName}', '${targetFullDate}')" class="bg-indigo-50 hover:bg-amber-400 text-indigo-900 w-4 h-4 rounded-full flex items-center justify-center text-[9px]"><i class="fa-solid fa-plus"></i></button>
+                  </div>
+                </div>`;
+            }
+          });
+
+          dayColsHtml += `
+            <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex-none ${isPickupOnly ? 'w-[360px]' : 'w-[280px]'}">
+              <div class="bg-indigo-950 text-white px-2.5 py-1.5 rounded-lg flex justify-between items-center mb-2.5">
+                <span class="text-[11px] font-black tracking-wider text-amber-400">${dayNamesHeader[dayIndex - 1]}</span>
+                <span class="bg-indigo-900 text-indigo-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border border-indigo-700">${dateStrFormatted}</span>
+              </div>
+              ${armadaListHtml}
+            </div>`;
         }
 
         allWeeksHtml += `
-          <div class="bg-slate-50/40 rounded-2xl shadow-2xs border border-slate-200/80 p-3.5">
-            <div class="mb-2.5 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b border-slate-200/60 pb-2">
-              <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${weekNum}
+          <div class="bg-slate-50/40 rounded-2xl border border-slate-200/80 p-3.5">
+            <div class="mb-2.5 font-bold text-xs text-indigo-900 flex items-center gap-2 border-b pb-2">
+              <i class="fa-solid fa-calendar-check text-amber-500"></i> Minggu ke-${index + 1}
             </div>
-            <div class="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin">${dayColsHtml}</div>
+            <div class="flex space-x-3 overflow-x-auto pb-2">${dayColsHtml}</div>
           </div>`;
       });
 
-      calendarContainer.innerHTML = allWeeksHtml;
+      return allWeeksHtml;
     }
 
-    function populateFilters() {
-      const armadas = [...new Set(rawData.map(item => item.Armada))];
-      const daerahs = [...new Set(rawData.map(item => item.Daerah))];
+    // =========================================================================
+    // FUNGSI UPDATE STATUS PICK UP KE GOOGLE SHEETS (KOLOM J)
+    // =========================================================================
+    function updatePickupStatus(customer, tanggal, armada, newStatus) {
+      rawData.forEach(r => {
+        if (cleanString(r.Customer) === cleanString(customer) && r.Tanggal === normalizeDateString(tanggal)) {
+          r.Status = newStatus;
+        }
+      });
 
-      const armadaSelect = document.getElementById('armadaFilter');
-      armadaSelect.innerHTML = '<option value="ALL">Semua Armada</option>';
-      armadas.forEach(arm => { if (arm) armadaSelect.innerHTML += `<option value="${arm}">${arm}</option>`; });
+      const url = new URL(WEBHOOK_API_URL);
+      url.searchParams.append('action', 'update_jadwal');
+      url.searchParams.append('Tanggal', normalizeDateString(tanggal));
+      url.searchParams.append('Customer', customer);
+      url.searchParams.append('Armada', armada);
+      url.searchParams.append('Status', newStatus);
 
-      const daerahSelect = document.getElementById('daerahFilter');
-      daerahSelect.innerHTML = '<option value="ALL">Semua Daerah</option>';
-      daerahs.forEach(daerah => { if (daerah && daerah !== '-') daerahSelect.innerHTML += `<option value="${daerah}">${daerah}</option>`; });
-
-      const dateSelect = document.getElementById('dateSelect');
-      dateSelect.innerHTML = '';
-      datesList.forEach((date, idx) => { dateSelect.innerHTML += `<option value="${idx}">${date}</option>`; });
+      fetch(url.toString(), { method: 'POST', mode: 'no-cors' });
     }
 
-    function slideDate(direction) {
-      const newIdx = currentDateIndex + direction;
-      if (newIdx >= 0 && newIdx < datesList.length) {
-        currentDateIndex = newIdx;
-        document.getElementById('dateSelect').value = currentDateIndex;
-        renderDashboard();
+    // =========================================================================
+    // FUNGSI UPLOAD & PREVIEW GAMBAR (WEB ONLY - LOCALSTORAGE)
+    // =========================================================================
+    function handlePickupImageUpload(event, imgKey) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // Kompres gambar ringan via canvas agar muat di localStorage
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 800;
+          const scale = Math.min(1, maxW / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          pickupImages[imgKey] = canvas.toDataURL('image/jpeg', 0.7);
+          localStorage.setItem('logistics_pickup_images', JSON.stringify(pickupImages));
+          renderPickupCalendar();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function openImagePreviewModal(imgKey, customerName) {
+      activePreviewImageKey = imgKey;
+      document.getElementById('imgModalTitle').innerText = `Bukti Pick Up: ${customerName}`;
+      document.getElementById('imgModalPreview').src = pickupImages[imgKey] || '';
+      document.getElementById('imagePreviewModal').classList.remove('hidden');
+    }
+
+    function closeImagePreviewModal() {
+      document.getElementById('imagePreviewModal').classList.add('hidden');
+    }
+
+    function deleteCurrentPickupImage() {
+      if (activePreviewImageKey && pickupImages[activePreviewImageKey]) {
+        delete pickupImages[activePreviewImageKey];
+        localStorage.setItem('logistics_pickup_images', JSON.stringify(pickupImages));
+        closeImagePreviewModal();
+        renderPickupCalendar();
       }
     }
 
-    function onDateSelectChange(val) {
-      currentDateIndex = parseInt(val);
-      renderDashboard();
+    // =========================================================================
+    // OUTSTANDING TABLE, FILTER & TAMBAHAN ROUTING (FUNGSI BAWAAN)
+    // =========================================================================
+    function renderOutstandingTable() {
+      const tbody = document.getElementById('outstandingTableBody');
+      const badgeCount = document.getElementById('outstandingBadgeCount');
+      const selectedStatus = document.getElementById('statusFilterSelect').value;
+
+      let filtered = orderDetailsData.filter(item => {
+        const st = (item.Status || '').toLowerCase();
+        const isBelum = st.includes('belum') || st.includes('pending');
+        const isPartial = st.includes('partial');
+        const isClosed = st.includes('closed') || st.includes('terkirim') || st.includes('done');
+        if (selectedStatus === 'BELUM_TERKIRIM') return isBelum;
+        if (selectedStatus === 'PARTIAL') return isPartial;
+        return (isBelum || isPartial || item.OutstandingQty > 0) && !isClosed;
+      });
+
+      badgeCount.innerText = filtered.length;
+      tbody.innerHTML = filtered.length === 0
+        ? `<tr><td colspan="9" class="py-6 text-center text-slate-400">Tidak ada data PO outstanding.</td></tr>`
+        : filtered.map((row, idx) => {
+            const docKey = row.TransactionNumber || `DOC-${idx}`;
+            const noteVal = orderNotes[docKey] || row.Note || '';
+            const safeCust = (row.NamaCustomer || '').replace(/'/g, "\\'");
+            const safeTgl = (row.TanggalKirim || '').replace(/'/g, "\\'");
+            const safeArm = (row.Armada || '').replace(/'/g, "\\'");
+            return `
+              <tr class="hover:bg-amber-50/50 border-b">
+                <td class="py-2.5 px-3 text-center text-slate-400">${idx + 1}</td>
+                <td class="py-2.5 px-3 font-semibold">${row.TanggalKirim}</td>
+                <td class="py-2.5 px-3 font-bold text-indigo-950">${row.NamaCustomer}</td>
+                <td class="py-2.5 px-3 text-slate-600">-</td>
+                <td class="py-2.5 px-3 font-mono font-bold text-indigo-700 cursor-pointer" onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')">${row.TransactionNumber}</td>
+                <td class="py-2.5 px-3 text-center"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold">${row.Status}</span></td>
+                <td class="py-2.5 px-3 text-center font-black text-rose-600">${row.OutstandingQty} ${row.Unit}</td>
+                <td class="py-2.5 px-3"><input type="text" value="${noteVal}" onchange="orderNotes['${docKey}']=this.value;localStorage.setItem('logistics_order_notes',JSON.stringify(orderNotes))" class="w-full bg-slate-50 border rounded px-2 py-1 text-xs" /></td>
+                <td class="py-2.5 px-3 text-center"><button onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')" class="bg-indigo-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg">Detail</button></td>
+              </tr>`;
+          }).join('');
+    }
+
+    function toggleOutstandingSection() {
+      document.getElementById('outstandingContent').classList.toggle('hidden');
+      document.getElementById('outstandingArrowIcon').classList.toggle('rotate-180');
+    }
+
+    function populateFilters() {
+      const armadas = [...new Set(rawData.map(i => i.Armada))];
+      const daerahs = [...new Set(rawData.map(i => i.Daerah))];
+      document.getElementById('armadaFilter').innerHTML = '<option value="ALL">Semua Armada</option>' + armadas.map(a => `<option value="${a}">${a}</option>`).join('');
+      document.getElementById('daerahFilter').innerHTML = '<option value="ALL">Semua Daerah</option>' + daerahs.filter(d => d !== '-').map(d => `<option value="${d}">${d}</option>`).join('');
+      document.getElementById('dateSelect').innerHTML = datesList.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+    }
+
+    function slideDate(dir) {
+      const n = currentDateIndex + dir;
+      if (n >= 0 && n < datesList.length) { currentDateIndex = n; document.getElementById('dateSelect').value = n; renderDashboard(); }
+    }
+    function onDateSelectChange(val) { currentDateIndex = parseInt(val); renderDashboard(); }
+    function applyFilters() { renderDashboard(); }
+    function resetFilters() {
+      document.getElementById('searchInput').value = ''; document.getElementById('armadaFilter').value = 'ALL';
+      document.getElementById('daerahFilter').value = 'ALL'; document.getElementById('startDateInput').value = '';
+      document.getElementById('endDateInput').value = ''; renderDashboard();
     }
 
     function getFilteredData() {
       const search = document.getElementById('searchInput').value.toLowerCase().trim();
-      const selectedArmada = document.getElementById('armadaFilter').value;
-      const selectedDaerah = document.getElementById('daerahFilter').value;
-      const startDate = document.getElementById('startDateInput').value;
-      const endDate = document.getElementById('endDateInput').value;
+      const arm = document.getElementById('armadaFilter').value;
+      const dae = document.getElementById('daerahFilter').value;
+      const sDate = document.getElementById('startDateInput').value;
+      const eDate = document.getElementById('endDateInput').value;
 
       return rawData.filter(item => {
-        const searchMatch = !search || item.Customer.toLowerCase().includes(search) || item.Daerah.toLowerCase().includes(search) || item.Armada.toLowerCase().includes(search);
-        const armadaMatch = selectedArmada === 'ALL' || item.Armada === selectedArmada;
-        const daerahMatch = selectedDaerah === 'ALL' || item.Daerah === selectedDaerah;
-
+        const sMatch = !search || item.Customer.toLowerCase().includes(search) || item.Daerah.toLowerCase().includes(search);
+        const aMatch = arm === 'ALL' || item.Armada === arm;
+        const dMatch = dae === 'ALL' || item.Daerah === dae;
         let dateMatch = true;
-        if (search) {
-          dateMatch = true;
-        } else if (startDate || endDate) {
-          if (item.ISODate) {
-            if (startDate && item.ISODate < startDate) dateMatch = false;
-            if (endDate && item.ISODate > endDate) dateMatch = false;
-          } else {
-            dateMatch = false;
-          }
-        } else {
-          if (datesList.length > 0) dateMatch = item.Tanggal === datesList[currentDateIndex];
+        if (!search) {
+          if (sDate || eDate) dateMatch = item.ISODate && (!sDate || item.ISODate >= sDate) && (!eDate || item.ISODate <= eDate);
+          else if (datesList.length > 0) dateMatch = item.Tanggal === datesList[currentDateIndex];
         }
-
-        return searchMatch && armadaMatch && daerahMatch && dateMatch;
+        return sMatch && aMatch && dMatch && dateMatch;
       });
-    }
-
-    function applyFilters() {
-      renderDashboard();
-    }
-
-    function resetFilters() {
-      document.getElementById('searchInput').value = '';
-      document.getElementById('armadaFilter').value = 'ALL';
-      document.getElementById('daerahFilter').value = 'ALL';
-      document.getElementById('startDateInput').value = '';
-      document.getElementById('endDateInput').value = '';
-      renderDashboard();
     }
 
     function renderDashboard() {
-      const search = document.getElementById('searchInput').value.trim();
-      const filteredData = getFilteredData();
+      const data = getFilteredData();
+      document.getElementById('currentDateDisplay').innerText = datesList[currentDateIndex] || 'N/A';
+      document.getElementById('metricPengiriman').innerText = data.length;
+      document.getElementById('metricDokumen').innerText = data.reduce((s, i) => s + i.TotalDokumen, 0);
+      document.getElementById('metricBerat').innerText = `${data.reduce((s, i) => s + i.TotalBerat, 0).toLocaleString('id-ID')} gr`;
+      document.getElementById('metricCost').innerText = `Rp ${data.reduce((s, i) => s + i.Cost, 0).toLocaleString('id-ID')}`;
+      document.getElementById('metricValue').innerText = `Rp ${data.reduce((s, i) => s + i.Value, 0).toLocaleString('id-ID')}`;
+
       const container = document.getElementById('armadaContainer');
+      if (data.length === 0) { container.innerHTML = `<div class="bg-white rounded-xl p-8 text-center text-slate-500 border">Tidak ada data pengiriman.</div>`; return; }
 
-      if (datesList.length > 0) {
-        document.getElementById('currentDateDisplay').innerText = datesList[currentDateIndex] || 'N/A';
-      }
+      const grouped = {};
+      data.forEach(i => { if (!grouped[i.Armada]) grouped[i.Armada] = []; grouped[i.Armada].push(i); });
 
-      updateMetrics(filteredData);
-      
-      if (filteredData.length === 0) {
-        container.innerHTML = `
-          <div class="bg-white rounded-xl p-8 text-center text-slate-500 border border-slate-200 shadow-sm">
-            <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
-            <p class="font-bold">Tidak ada data pengiriman yang cocok.</p>
-          </div>`;
-        return;
-      }
-
-      const groupedByArmada = {};
-      filteredData.forEach(item => {
-        if (!groupedByArmada[item.Armada]) groupedByArmada[item.Armada] = [];
-        groupedByArmada[item.Armada].push(item);
-      });
-
-      let allCardsHtml = '';
-      Object.keys(groupedByArmada).forEach(armadaName => {
-        const items = groupedByArmada[armadaName];
-        const totalBerat = items.reduce((sum, i) => sum + i.TotalBerat, 0);
-        const totalDok = items.reduce((sum, i) => sum + i.TotalDokumen, 0);
-
-        let tableRows = '';
-        items.forEach((row, idx) => {
-          const safeCust = row.Customer.replace(/'/g, "\\'");
-          const safeTgl = row.Tanggal.replace(/'/g, "\\'");
-          const safeArmada = row.Armada.replace(/'/g, "\\'");
-
-          tableRows += `
-            <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArmada}')" class="hover:bg-indigo-50/60 transition cursor-pointer group border-b border-slate-100">
-              <td class="py-3.5 px-4 text-center text-slate-400 font-medium">${idx + 1}</td>
-              <td class="py-3.5 px-4 font-bold text-indigo-900 group-hover:text-indigo-600 transition">${row.Customer}</td>
-              <td class="py-3.5 px-4"><span class="bg-slate-100 px-2.5 py-1 rounded-md font-semibold text-slate-700">${row.Daerah}</span></td>
-              <td class="py-3.5 px-4 text-center font-bold text-slate-800">${row.TotalDokumen}</td>
-              <td class="py-3.5 px-4 text-right font-bold text-slate-700">${row.TotalBerat.toLocaleString('id-ID')} gr</td>
-              <td class="py-3.5 px-4 text-right font-extrabold text-emerald-600">${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}</td>
-              <td class="py-3.5 px-4 text-right font-extrabold text-purple-600">${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}</td>
-            </tr>`;
-        });
-
-        allCardsHtml += `
-          <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
-            <div class="bg-indigo-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-              <div class="flex items-center space-x-3">
-                <div class="bg-amber-400 text-slate-900 p-2 rounded-lg font-bold">
-                  <i class="fa-solid fa-truck text-lg"></i>
-                </div>
-                <div>
-                  <h3 class="font-extrabold text-lg tracking-wide uppercase">Armada: ${armadaName}</h3>
-                  <p class="text-xs text-indigo-200">${items.length} Tujuan Pengiriman</p>
-                </div>
-              </div>
-              <div class="flex flex-wrap items-center gap-3 text-xs">
-                <span class="bg-indigo-800 border border-indigo-700 px-3 py-1.5 rounded-lg font-bold">Dokumen: <span class="text-amber-300">${totalDok}</span></span>
-                <span class="bg-indigo-800 border border-indigo-700 px-3 py-1.5 rounded-lg font-bold">Berat: <span class="text-amber-300">${totalBerat.toLocaleString('id-ID')} gr</span></span>
-              </div>
+      container.innerHTML = Object.keys(grouped).map(arm => {
+        const items = grouped[arm];
+        const rows = items.map((r, idx) => `
+          <tr onclick="openDocumentModal('${r.Customer.replace(/'/g, "\\'")}', '${r.Tanggal}', '${r.Armada}')" class="hover:bg-indigo-50 cursor-pointer border-b">
+            <td class="py-3 px-4 text-center text-slate-400">${idx + 1}</td>
+            <td class="py-3 px-4 font-bold text-indigo-900">${r.Customer}</td>
+            <td class="py-3 px-4">${r.Daerah}</td>
+            <td class="py-3 px-4 text-center font-bold">${r.TotalDokumen}</td>
+            <td class="py-3 px-4 text-right font-bold">${r.TotalBerat.toLocaleString('id-ID')} gr</td>
+            <td class="py-3 px-4 text-right font-bold text-emerald-600">Rp ${r.Cost.toLocaleString('id-ID')}</td>
+            <td class="py-3 px-4 text-right font-bold text-purple-600">Rp ${r.Value.toLocaleString('id-ID')}</td>
+          </tr>`).join('');
+        return `
+          <div class="bg-white rounded-2xl shadow-md border overflow-hidden">
+            <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+              <h3 class="font-extrabold text-lg uppercase">Armada: ${arm} (${items.length} Tujuan)</h3>
             </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left border-collapse text-xs md:text-sm">
-                <thead class="bg-slate-100 text-slate-500 uppercase text-[11px] font-extrabold border-b border-slate-200">
-                  <tr>
-                    <th class="py-3 px-4 text-center w-12">No</th>
-                    <th class="py-3 px-4">Customer</th>
-                    <th class="py-3 px-4">Daerah</th>
-                    <th class="py-3 px-4 text-center">Total Dok</th>
-                    <th class="py-3 px-4 text-right">Total Berat</th>
-                    <th class="py-3 px-4 text-right">Cost</th>
-                    <th class="py-3 px-4 text-right">Value</th>
-                  </tr>
-                </thead>
-                <tbody>${tableRows}</tbody>
-              </table>
-            </div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs md:text-sm"><thead class="bg-slate-100 uppercase text-[11px] font-bold"><tr><th class="py-3 px-4 text-center">No</th><th class="py-3 px-4">Customer</th><th class="py-3 px-4">Daerah</th><th class="py-3 px-4 text-center">Dok</th><th class="py-3 px-4 text-right">Berat</th><th class="py-3 px-4 text-right">Cost</th><th class="py-3 px-4 text-right">Value</th></tr></thead><tbody>${rows}</tbody></table></div>
           </div>`;
-      });
-
-      container.innerHTML = allCardsHtml;
+      }).join('');
     }
 
-    function updateMetrics(data) {
-      document.getElementById('metricPengiriman').innerText = data.length;
-      document.getElementById('metricDokumen').innerText = data.reduce((sum, i) => sum + i.TotalDokumen, 0);
-      document.getElementById('metricBerat').innerText = `${data.reduce((sum, i) => sum + i.TotalBerat, 0).toLocaleString('id-ID')} gr`;
-      document.getElementById('metricCost').innerText = `Rp ${data.reduce((sum, i) => sum + i.Cost, 0).toLocaleString('id-ID')}`;
-      document.getElementById('metricValue').innerText = `Rp ${data.reduce((sum, i) => sum + i.Value, 0).toLocaleString('id-ID')}`;
+    function openAddRoutingModal(arm, dateStr) {
+      document.getElementById('addArmadaTarget').value = arm;
+      document.getElementById('addDateTarget').value = dateStr || '';
+      document.getElementById('addRoutingModal').classList.remove('hidden');
+    }
+    function closeAddRoutingModal() { document.getElementById('addRoutingModal').classList.add('hidden'); }
+
+    function submitTambahanRouting(e) {
+      e.preventDefault();
+      const customer = document.getElementById('addCustomer').value.trim();
+      const daerah = document.getElementById('addDaerah').value.trim() || '-';
+      const dokumen = document.getElementById('addDokumen').value.trim() || '1 Dok';
+      const cost = parseInt(document.getElementById('addCost').value) || 0;
+      const value = parseInt(document.getElementById('addValue').value) || 0;
+      const armada = document.getElementById('addArmadaTarget').value;
+      const tanggal = document.getElementById('addDateTarget').value;
+
+      const url = new URL(WEBHOOK_API_URL);
+      url.searchParams.append('action', 'add_routing');
+      url.searchParams.append('Tanggal', tanggal);
+      url.searchParams.append('Customer', customer);
+      url.searchParams.append('Armada', armada);
+      url.searchParams.append('Daerah', daerah);
+      url.searchParams.append('Dokumen', dokumen);
+      url.searchParams.append('Cost', cost);
+      url.searchParams.append('Value', value);
+
+      fetch(url.toString(), { method: 'POST', mode: 'no-cors' }).finally(() => {
+        closeAddRoutingModal();
+        fetchSheetData();
+      });
     }
 
     function downloadCSV() {
       const data = getFilteredData();
-      if (data.length === 0) return alert('Tidak ada data!');
+      if (!data.length) return alert('Tidak ada data!');
       const csv = Papa.unparse(data);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `Laporan_Logistik_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    function downloadExcel() {
-      downloadCSV();
-    }
-
-    function printReport() {
-      window.print();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      a.download = `Laporan_Logistik_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
     }
   </script>
 </body>
