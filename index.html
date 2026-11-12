@@ -314,8 +314,8 @@
   </div>
 
   <script>
-    const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
+    const CSV_JADWAL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Jadwal%20Harian`;
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
@@ -330,6 +330,7 @@
 
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
     let pickupImages = JSON.parse(localStorage.getItem('logistics_pickup_images') || '{}');
+    let localOverrides = JSON.parse(localStorage.getItem('logistics_local_overrides') || '{}');
     let activeModalContext = { customer: '', tanggal: '', armada: '' };
     let activePreviewImageKey = '';
 
@@ -340,7 +341,6 @@
       document.getElementById('pickupMonthSelect').value = today.getMonth();
       document.getElementById('pickupYearSelect').value = today.getFullYear();
 
-      // 1. TAMPILKAN CACHE INSTAN (< 0.1 DETIK) JIKA SUDAH PERNAH SYNC
       try {
         const cachedJadwal = localStorage.getItem('cache_raw_jadwal');
         if (cachedJadwal) {
@@ -352,7 +352,6 @@
         }
       } catch (e) {}
 
-      // 2. TARIK DATA TERBARU DI LATAR BELAKANG
       fetchSheetData(false);
     });
 
@@ -388,7 +387,10 @@
       return str;
     }
 
-    // FETCH CSV DENGAN TIMEOUT 8 DETIK AGAR TIDAK MACET DI SYNCING
+    function getOverrideKey(tanggal, customer) {
+      return `${normalizeDateString(tanggal)}_${cleanString(customer)}`;
+    }
+
     function fetchCSVWithTimeout(url, timeoutMs = 8000) {
       return new Promise(resolve => {
         let done = false;
@@ -409,7 +411,6 @@
 
       const bust = forceBust ? `&_t=${Date.now()}` : '';
 
-      // PRIORITAS 1: JADWAL HARIAN & TAMBAHAN ROUTING (CEPAT)
       Promise.all([
         fetchCSVWithTimeout(CSV_JADWAL_URL + bust, 8000),
         fetchCSVWithTimeout(CSV_TAMBAHAN_URL + bust, 8000)
@@ -422,7 +423,6 @@
         badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
       });
 
-      // PRIORITAS 2: INPUT ORDER (BERJALAN TERPISAH DI LATAR BELAKANG)
       fetchCSVWithTimeout(CSV_ORDER_URL + bust, 12000).then(orderData => {
         if (orderData.length > 0) {
           processOrderDetailsData(orderData);
@@ -469,18 +469,25 @@
         if (armadaName === 'GRAND MAX') armadaName = 'GRANMAX';
         if (armadaName === 'PICKUP') armadaName = 'PICK UP';
 
+        const custName = (item['Customer'] || '').trim();
+        const key = getOverrideKey(normDate || rawDate, custName);
+        const override = localOverrides[key] || {};
+
+        const sheetKet = (item['Keterangan'] || '').trim();
+        const sheetStatus = (item['Status'] || '').trim();
+
         return {
           Tanggal: normDate || rawDate,
           ISODate: parsedISO,
-          Customer: (item['Customer'] || '').trim(),
+          Customer: custName,
           Armada: armadaName,
           Daerah: (item['Daerah'] || '-').trim(),
           TotalDokumen: parseInt(String(item['Dokumen'] || item['Total Dokumen'] || '1').replace(/[^0-9]/g, '')) || 1,
           TotalBerat: parseInt(String(item['Total berat'] || item['Berat'] || '0').replace(/[^0-9]/g, '')) || 0,
           Cost: parseInt(String(item['Cost'] || '0').replace(/[^0-9]/g, '')) || 0,
           Value: parseInt(String(item['Value'] || '0').replace(/[^0-9]/g, '')) || 0,
-          Keterangan: (item['Keterangan'] || '').trim(),
-          Status: (item['Status'] || '').trim() || 'Pending'
+          Keterangan: sheetKet !== '' ? sheetKet : (override.Keterangan || ''),
+          Status: sheetStatus !== '' ? sheetStatus : (override.Status || 'Pending')
         };
       };
 
@@ -572,12 +579,18 @@
       const btn = document.getElementById('btnSaveKeterangan');
       const statusEl = document.getElementById('modalKeteranganSaveStatus');
       const newKet = document.getElementById('modalKeteranganInput').value.trim();
+      const normTgl = normalizeDateString(activeModalContext.tanggal);
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
 
+      const key = getOverrideKey(normTgl, activeModalContext.customer);
+      if (!localOverrides[key]) localOverrides[key] = {};
+      localOverrides[key].Keterangan = newKet;
+      localStorage.setItem('logistics_local_overrides', JSON.stringify(localOverrides));
+
       rawData.forEach(r => {
-        if (cleanString(r.Customer) === cleanString(activeModalContext.customer) && r.Tanggal === normalizeDateString(activeModalContext.tanggal)) {
+        if (cleanString(r.Customer) === cleanString(activeModalContext.customer) && r.Tanggal === normTgl) {
           r.Keterangan = newKet;
         }
       });
@@ -585,7 +598,7 @@
 
       const url = new URL(WEBHOOK_API_URL);
       url.searchParams.append('action', 'update_jadwal');
-      url.searchParams.append('Tanggal', normalizeDateString(activeModalContext.tanggal));
+      url.searchParams.append('Tanggal', normTgl);
       url.searchParams.append('Customer', activeModalContext.customer);
       url.searchParams.append('Armada', activeModalContext.armada);
       url.searchParams.append('Keterangan', newKet);
@@ -775,8 +788,15 @@
     }
 
     function updatePickupStatus(customer, tanggal, armada, newStatus) {
+      const normTgl = normalizeDateString(tanggal);
+      const key = getOverrideKey(normTgl, customer);
+
+      if (!localOverrides[key]) localOverrides[key] = {};
+      localOverrides[key].Status = newStatus;
+      localStorage.setItem('logistics_local_overrides', JSON.stringify(localOverrides));
+
       rawData.forEach(r => {
-        if (cleanString(r.Customer) === cleanString(customer) && r.Tanggal === normalizeDateString(tanggal)) {
+        if (cleanString(r.Customer) === cleanString(customer) && r.Tanggal === normTgl) {
           r.Status = newStatus;
         }
       });
@@ -784,7 +804,7 @@
 
       const url = new URL(WEBHOOK_API_URL);
       url.searchParams.append('action', 'update_jadwal');
-      url.searchParams.append('Tanggal', normalizeDateString(tanggal));
+      url.searchParams.append('Tanggal', normTgl);
       url.searchParams.append('Customer', customer);
       url.searchParams.append('Armada', armada);
       url.searchParams.append('Status', newStatus);
