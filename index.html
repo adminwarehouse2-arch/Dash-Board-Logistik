@@ -199,6 +199,41 @@
       </div>
 
       <div id="pickupCalendarContainer" class="space-y-6"></div>
+
+      <!-- REMINDER ALARM: LIST DOKUMEN PICK UP BELUM SELESAI -->
+      <div class="bg-white rounded-2xl shadow-md border border-rose-200 overflow-hidden mt-8">
+        <div class="bg-rose-950 text-white px-5 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="bg-amber-400 text-slate-900 p-2 rounded-lg font-bold animate-pulse">
+              <i class="fa-solid fa-bell text-lg"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-sm md:text-base uppercase flex items-center gap-2">
+                ALARM REMINDER: PICK UP BELUM SELESAI
+                <span id="pickupPendingBadgeCount" class="bg-rose-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
+              </h3>
+              <p class="text-xs text-rose-200">Daftar khusus jadwal Pick Up yang statusnya belum <b>Selesai</b> (otomatis hilang dari daftar jika status diubah ke Selesai)</p>
+            </div>
+          </div>
+        </div>
+        <div class="p-4 bg-slate-50">
+          <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table class="w-full text-left border-collapse text-xs md:text-sm">
+              <thead class="bg-slate-800 text-white uppercase text-[11px] font-bold">
+                <tr>
+                  <th class="py-3 px-3 text-center w-12">No</th>
+                  <th class="py-3 px-3">Tanggal Kirim</th>
+                  <th class="py-3 px-3">No Dokumen</th>
+                  <th class="py-3 px-3">Customer</th>
+                  <th class="py-3 px-3 text-center">Status</th>
+                  <th class="py-3 px-3 text-center">Detail</th>
+                </tr>
+              </thead>
+              <tbody id="pickupPendingTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -445,6 +480,7 @@
         if (orderData.length > 0) {
           processOrderDetailsData(orderData);
           renderOutstandingTable();
+          if (activeTab === 'pickup') renderPickupPendingList();
         }
       });
     }
@@ -613,6 +649,7 @@
         }
       });
       try { localStorage.setItem('cache_raw_jadwal', JSON.stringify(rawData)); } catch (e) {}
+      if (activeTab === 'pickup') renderPickupCalendar();
 
       const url = new URL(WEBHOOK_API_URL);
       url.searchParams.append('action', 'update_jadwal');
@@ -645,6 +682,74 @@
       const selectedMonth = parseInt(document.getElementById('pickupMonthSelect').value);
       const selectedYear = parseInt(document.getElementById('pickupYearSelect').value);
       container.innerHTML = buildWeeklyMatrixHTML(selectedMonth, selectedYear, true);
+      renderPickupPendingList();
+    }
+
+    function renderPickupPendingList() {
+      const tbody = document.getElementById('pickupPendingTableBody');
+      const badge = document.getElementById('pickupPendingBadgeCount');
+      if (!tbody || !badge) return;
+
+      // Ambil semua jadwal armada PICK UP yang statusnya BUKAN 'Selesai' dan BUKAN 'Batal'
+      const pendingPickups = rawData.filter(item => {
+        if (item.Armada !== 'PICK UP') return false;
+        const st = (item.Status || 'Pending').trim().toLowerCase();
+        return st !== 'selesai' && st !== 'batal';
+      });
+
+      // Urutkan berdasarkan tanggal kirim
+      pendingPickups.sort((a, b) => {
+        if (a.ISODate && b.ISODate) return a.ISODate.localeCompare(b.ISODate);
+        return a.Tanggal.localeCompare(b.Tanggal);
+      });
+
+      badge.innerText = pendingPickups.length;
+
+      if (pendingPickups.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-emerald-600 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Semua jadwal Pick Up sudah selesai!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = pendingPickups.map((row, idx) => {
+        const cleanCust = cleanString(row.Customer);
+        const normTgl = normalizeDateString(row.Tanggal);
+
+        // Cari No Dokumen (Transaction Number) dari Sheet INPUT ORDER berdasarkan Customer & Tanggal
+        const matchedOrders = orderDetailsData.filter(o => {
+          const oCust = cleanString(o.NamaCustomer);
+          const custMatch = oCust.includes(cleanCust) || cleanCust.includes(oCust);
+          const oDate = normalizeDateString(o.TanggalKirim);
+          return custMatch && (!normTgl || !oDate || oDate === normTgl);
+        });
+
+        const docNumbers = [...new Set(matchedOrders.map(o => o.TransactionNumber).filter(Boolean))];
+        const noDokumenDisplay = docNumbers.length > 0 ? docNumbers.join(', ') : `${row.TotalDokumen} Dok`;
+
+        const safeCust = row.Customer.replace(/'/g, "\'");
+        const safeTgl = row.Tanggal.replace(/'/g, "\'");
+        const safeArm = row.Armada.replace(/'/g, "\'");
+
+        return `
+          <tr class="hover:bg-rose-50/60 transition border-b border-slate-100">
+            <td class="py-2.5 px-3 text-center text-slate-400 font-semibold">${idx + 1}</td>
+            <td class="py-2.5 px-3 font-bold text-slate-700 whitespace-nowrap">${row.Tanggal}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-indigo-800">${noDokumenDisplay}</td>
+            <td class="py-2.5 px-3 font-bold text-indigo-950">${row.Customer}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+              <select onchange="updatePickupStatus('${safeCust}', '${safeTgl}', '${safeArm}', this.value)" class="text-xs font-bold px-2.5 py-1 rounded-lg border border-rose-300 bg-rose-50 text-rose-900 focus:outline-none">
+                <option value="Pending" ${row.Status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Proses Pick Up" ${row.Status === 'Proses Pick Up' ? 'selected' : ''}>Proses Pick Up</option>
+                <option value="Selesai" ${row.Status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+                <option value="Batal" ${row.Status === 'Batal' ? 'selected' : ''}>Batal</option>
+              </select>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <button onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1 rounded-lg shadow-2xs">
+                Lihat Barang
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
     }
 
     function buildWeeklyMatrixHTML(selectedMonth, selectedYear, isPickupOnly) {
@@ -735,12 +840,12 @@
 
                 return `
                   <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100">
+                    ${pickupExtraCols}
                     <td class="py-2 px-2.5 font-semibold text-indigo-950 whitespace-nowrap">${row.Customer}</td>
                     <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 whitespace-nowrap">${row.Daerah}</td>
                     <td class="py-2 px-1 text-center font-mono font-bold whitespace-nowrap"><span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">${row.TotalDokumen} Dok</span></td>
                     <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}</td>
                     <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}</td>
-                    ${pickupExtraCols}
                   </tr>`;
               }).join('');
 
@@ -762,9 +867,9 @@
                     <table class="w-full text-left border-collapse text-xs min-w-[420px]">
                       <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b">
                         <tr>
+                          ${isPickupOnly ? '<th class="py-1.5 px-2">Status</th><th class="py-1.5 px-2 text-center">Foto</th>' : ''}
                           <th class="py-1.5 px-2.5">Customer</th><th class="py-1.5 px-2">Daerah</th><th class="py-1.5 px-1 text-center">Dok</th>
                           <th class="py-1.5 px-2 text-right">Cost</th><th class="py-1.5 px-2 text-right">Value</th>
-                          ${isPickupOnly ? '<th class="py-1.5 px-2">Status (Sheets)</th><th class="py-1.5 px-2 text-center">Foto (Web)</th>' : ''}
                         </tr>
                       </thead>
                       <tbody>${customerRows}</tbody>
@@ -819,6 +924,7 @@
         }
       });
       try { localStorage.setItem('cache_raw_jadwal', JSON.stringify(rawData)); } catch (e) {}
+      if (activeTab === 'pickup') renderPickupCalendar();
 
       const url = new URL(WEBHOOK_API_URL);
       url.searchParams.append('action', 'update_jadwal');
