@@ -658,7 +658,7 @@
       url.searchParams.append('Armada', activeModalContext.armada);
       url.searchParams.append('Keterangan', newKet);
 
-      fetch(url.toString(), { method: 'POST', mode: 'no-cors' })
+      fetch(url.toString(), { method: 'GET', mode: 'no-cors' })
         .finally(() => {
           btn.disabled = false;
           btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Simpan Keterangan`;
@@ -933,7 +933,7 @@
       url.searchParams.append('Armada', armada);
       url.searchParams.append('Status', newStatus);
 
-      fetch(url.toString(), { method: 'POST', mode: 'no-cors' });
+      fetch(url.toString(), { method: 'GET', mode: 'no-cors' });
     }
 
     function handlePickupImageUpload(event, imgKey) {
@@ -1122,7 +1122,7 @@
       url.searchParams.append('Cost', cost);
       url.searchParams.append('Value', value);
 
-      fetch(url.toString(), { method: 'POST', mode: 'no-cors' }).finally(() => {
+      fetch(url.toString(), { method: 'GET', mode: 'no-cors' }).finally(() => {
         closeAddRoutingModal();
         fetchSheetData(true);
       });
