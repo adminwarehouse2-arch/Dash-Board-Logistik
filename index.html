@@ -315,7 +315,6 @@
 
   <script>
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
-    // Gunakan link pub?gid=350332557 yang terbukti bisa diakses publik untuk Jadwal Harian
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
@@ -375,11 +374,10 @@
       return str ? String(str).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
     }
 
-function normalizeDateString(dateStr) {
+    function normalizeDateString(dateStr) {
       if (!dateStr) return '';
       const str = String(dateStr).trim();
 
-      // 1. Tangani format Date(YYYY,M,D) bawaan Google Visualization API
       const gvizMatch = str.match(/^Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})\)/i);
       if (gvizMatch) {
         const y = gvizMatch[1];
@@ -388,24 +386,17 @@ function normalizeDateString(dateStr) {
         return `${d}-${m}-${y}`;
       }
 
-      // 2. Tangani format pemisah -, /, atau .
       const parts = str.split(/[-/.]/);
       if (parts.length === 3) {
-        let p0 = parseInt(parts[0], 10);
         let p1 = parseInt(parts[1], 10);
-        let p2 = parseInt(parts[2], 10);
-
         let day, month, year;
         if (parts[0].length === 4) {
-          // Format YYYY-MM-DD
           year = parts[0]; month = parts[1]; day = parts[2];
         } else {
           year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-          // Jika angka kedua > 12, berarti format Amerika MM/DD/YYYY (contoh: 11/19/2026)
           if (p1 > 12) {
             month = parts[0]; day = parts[1];
           } else {
-            // Standar Indonesia DD-MM-YYYY (contoh: 14-11-2026 atau 02-11-2026)
             day = parts[0]; month = parts[1];
           }
         }
@@ -717,9 +708,9 @@ function normalizeDateString(dateStr) {
               list.sort((a, b) => a.Daerah.localeCompare(b.Daerah, 'id', { sensitivity: 'base' }));
 
               const customerRows = list.map(row => {
-                const safeCust = row.Customer.replace(/'/g, "\\'");
-                const safeTgl = row.Tanggal.replace(/'/g, "\\'");
-                const safeArm = row.Armada.replace(/'/g, "\\'");
+                const safeCust = row.Customer.replace(/'/g, "\'");
+                const safeTgl = row.Tanggal.replace(/'/g, "\'");
+                const safeArm = row.Armada.replace(/'/g, "\'");
                 const imgKey = `${row.Tanggal}_${cleanString(row.Customer)}`;
                 const hasImg = !!pickupImages[imgKey];
 
@@ -898,9 +889,9 @@ function normalizeDateString(dateStr) {
         : filtered.map((row, idx) => {
             const docKey = row.TransactionNumber || `DOC-${idx}`;
             const noteVal = orderNotes[docKey] || row.Note || '';
-            const safeCust = (row.NamaCustomer || '').replace(/'/g, "\\'");
-            const safeTgl = (row.TanggalKirim || '').replace(/'/g, "\\'");
-            const safeArm = (row.Armada || '').replace(/'/g, "\\'");
+            const safeCust = (row.NamaCustomer || '').replace(/'/g, "\'");
+            const safeTgl = (row.TanggalKirim || '').replace(/'/g, "\'");
+            const safeArm = (row.Armada || '').replace(/'/g, "\'");
             return `
               <tr class="hover:bg-amber-50/50 border-b">
                 <td class="py-2.5 px-3 text-center text-slate-400">${idx + 1}</td>
@@ -979,7 +970,7 @@ function normalizeDateString(dateStr) {
       container.innerHTML = Object.keys(grouped).map(arm => {
         const items = grouped[arm];
         const rows = items.map((r, idx) => `
-          <tr onclick="openDocumentModal('${r.Customer.replace(/'/g, "\\'")}', '${r.Tanggal}', '${r.Armada}')" class="hover:bg-indigo-50 cursor-pointer border-b">
+          <tr onclick="openDocumentModal('${r.Customer.replace(/'/g, "\'")}', '${r.Tanggal}', '${r.Armada}')" class="hover:bg-indigo-50 cursor-pointer border-b">
             <td class="py-3 px-4 text-center text-slate-400">${idx + 1}</td>
             <td class="py-3 px-4 font-bold text-indigo-900">${r.Customer}</td>
             <td class="py-3 px-4">${r.Daerah}</td>
