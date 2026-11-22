@@ -352,7 +352,9 @@
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
-    const CSV_FLOW_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tarikan%20Flow%20Report`;
+    // Menggunakan gid=1023665384 (Tarikan Flow Report) langsung + fallback nama sheet
+    const CSV_FLOW_GID_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=1023665384`;
+    const CSV_FLOW_NAME_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tarikan%20Flow%20Report`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
 
     const WEBHOOK_API_URL = "https://script.google.com/macros/s/AKfycbzsCcAB-vQ6xJRcVbm6RhhuZUcP4b-Y0ZgrfDPQKTz0giqy85wwPd1hP-4cNgcKdkT0/exec";
@@ -361,6 +363,7 @@
     let rawData = [];
     let orderDetailsData = [];
     let flowReportData = [];
+    let flowByDocNo = {};
     let datesList = [];
     let currentDateIndex = 0;
     let activeTab = 'dashboard';
@@ -379,7 +382,7 @@
       document.getElementById('pickupYearSelect').value = today.getFullYear();
 
       try {
-        const cachedJadwal = localStorage.getItem('cache_raw_jadwal');
+        const cachedJadwal = localStorage.getItem('cache_raw_jadwal_v2');
         if (cachedJadwal) {
           rawData = JSON.parse(cachedJadwal);
           datesList = [...new Set(rawData.map(item => item.Tanggal))];
@@ -389,7 +392,7 @@
         }
       } catch (e) {}
 
-      fetchSheetData(false);
+      fetchSheetData(true);
     });
 
     function switchTab(tab) {
@@ -417,7 +420,7 @@
         .toLowerCase()
         .replace(/\(linked\)/g, '')
         .replace(/\(b2b\)/g, '')
-        .replace(/\b(pt|cv|ud|tbk)\b\.?/g, '')
+        .replace(/\b(pt|cv|ud|tbk|bg)\b\.?/g, '')
         .replace(/[^a-z0-9]/g, '');
     }
 
@@ -430,10 +433,8 @@
         const lastComma = str.lastIndexOf(',');
         const lastDot = str.lastIndexOf('.');
         if (lastComma > lastDot) {
-          // Format Indonesia: 1.535.998,46
           str = str.replace(/\./g, '').split(',')[0];
         } else {
-          // Format US: 1,535,998.46
           str = str.replace(/,/g, '').split('.')[0];
         }
       } else if (str.includes(',')) {
@@ -489,7 +490,22 @@
       return `${normalizeDateString(tanggal)}_${cleanString(customer)}`;
     }
 
-    function fetchCSVWithTimeout(url, timeoutMs = 10000) {
+    // Parse CSV tanpa asumsi baris 1 adalah header (agar kolom A-M selalu akurat berdasarkan indeks 0-12)
+    function fetchRawMatrixCSV(url, timeoutMs = 12000) {
+      return new Promise(resolve => {
+        let done = false;
+        const timer = setTimeout(() => { if (!done) { done = true; resolve([]); } }, timeoutMs);
+        Papa.parse(url, {
+          download: true,
+          header: false,
+          skipEmptyLines: true,
+          complete: res => { if (!done) { done = true; clearTimeout(timer); resolve(res.data || []); } },
+          error: () => { if (!done) { done = true; clearTimeout(timer); resolve([]); } }
+        });
+      });
+    }
+
+    function fetchCSVWithTimeout(url, timeoutMs = 12000) {
       return new Promise(resolve => {
         let done = false;
         const timer = setTimeout(() => { if (!done) { done = true; resolve([]); } }, timeoutMs);
@@ -510,102 +526,77 @@
       const bust = forceBust ? `&_t=${Date.now()}` : '';
 
       Promise.all([
-        fetchCSVWithTimeout(CSV_JADWAL_URL + bust, 10000),
-        fetchCSVWithTimeout(CSV_TAMBAHAN_URL + bust, 10000),
-        fetchCSVWithTimeout(CSV_FLOW_URL + bust, 12000)
-      ]).then(([jadwalData, tambahanData, flowData]) => {
-        if (flowData && flowData.length > 0) {
-          processFlowReportData(flowData);
+        fetchCSVWithTimeout(CSV_JADWAL_URL + bust, 12000),
+        fetchCSVWithTimeout(CSV_TAMBAHAN_URL + bust, 12000),
+        fetchRawMatrixCSV(CSV_FLOW_GID_URL + bust, 14000),
+        fetchCSVWithTimeout(CSV_ORDER_URL + bust, 14000)
+      ]).then(async ([jadwalData, tambahanData, flowMatrix, orderData]) => {
+        // Jika gid=1023665384 kosong, coba via nama sheet Tarikan Flow Report
+        if (!flowMatrix || flowMatrix.length === 0) {
+          flowMatrix = await fetchRawMatrixCSV(CSV_FLOW_NAME_URL + bust, 12000);
         }
+
+        if (flowMatrix && flowMatrix.length > 0) {
+          processFlowReportMatrix(flowMatrix);
+        }
+
+        if (orderData && orderData.length > 0) {
+          processOrderDetailsData(orderData);
+        }
+
         if (jadwalData.length > 0 || tambahanData.length > 0) {
           processRawData(jadwalData, tambahanData);
-          syncValueFromFlowReport();
-          try { localStorage.setItem('cache_raw_jadwal', JSON.stringify(rawData)); } catch (e) {}
+          syncAllMissingValues();
+          try { localStorage.setItem('cache_raw_jadwal_v2', JSON.stringify(rawData)); } catch (e) {}
         }
+
+        renderOutstandingTable();
+        if (activeTab === 'pickup') renderPickupPendingList();
+
         const timeStamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
       });
-
-      fetchCSVWithTimeout(CSV_ORDER_URL + bust, 12000).then(orderData => {
-        if (orderData.length > 0) {
-          processOrderDetailsData(orderData);
-          renderOutstandingTable();
-          if (activeTab === 'pickup') renderPickupPendingList();
-        }
-      });
     }
 
-    // PARSING SHEET "Tarikan Flow Report" (Kolom K = index 10)
-    function processFlowReportData(data) {
+    // PARSING MATRIX "Tarikan Flow Report" BERDASARKAN POSISI KOLOM PASTI:
+    // Kolom A [0]: Transaction No (SL...)
+    // Kolom C [2]: Tanggal Kirim (2026-11-11)
+    // Kolom E [4]: Customer (PT. ...)
+    // Kolom K [10]: Grand Total / Value (1.535.998,46)
+    // Kolom M [12]: Keterangan / Outlet (PO Farmers Market..., IKEA...)
+    function processFlowReportMatrix(rows) {
       flowReportData = [];
-      for (let i = 0; i < data.length; i++) {
-        const item = data[i];
-        const keys = Object.keys(item);
-        const getVal = searchKeys => {
-          for (let k of searchKeys) {
-            if (item[k] !== undefined && String(item[k]).trim() !== '') return String(item[k]).trim();
-          }
-          return '';
-        };
+      flowByDocNo = {};
 
-        const rawDocNo = getVal(['Transaction Number', 'No Dokumen', 'Document No']) || (keys[0] ? String(item[keys[0]]).trim() : '');
-        const rawTglKirim = getVal(['Delivery Date', 'Tanggal Kirim', 'Schedule Date']) || (keys[2] ? String(item[keys[2]]).trim() : '');
-        const rawCust = getVal(['Customer', 'Nama Customer', 'Customer Name']) || (keys[4] ? String(item[keys[4]]).trim() : '');
-        // Kolom K adalah index ke-10 (0=A, 1=B, ..., 10=K)
-        const rawColK = keys[10] ? item[keys[10]] : (getVal(['Grand Total', 'Total', 'Value', 'Amount']) || '0');
-        const rawStatus = getVal(['Status']) || (keys[11] ? String(item[keys[11]]).trim() : '');
+      for (let i = 0; i < rows.length; i++) {
+        const cols = rows[i];
+        if (!cols || cols.length < 11) continue;
 
-        if (rawCust || rawTglKirim) {
-          flowReportData.push({
-            DocNo: rawDocNo,
-            TanggalKirim: normalizeDateString(rawTglKirim),
-            Customer: rawCust,
-            CleanCust: cleanCompanyName(rawCust),
-            ValueColK: parseIndoCurrency(rawColK),
-            Status: rawStatus
-          });
+        const docNo = String(cols[0] || '').trim();
+        const rawTglKirim = String(cols[2] || '').trim();
+        const rawCust = String(cols[4] || '').trim();
+        const rawColK = String(cols[10] || '').trim();
+        const rawKetM = String(cols[12] || '').trim();
+
+        // Lewati baris header
+        if (!docNo || docNo.toLowerCase().includes('transaction') || rawColK.toLowerCase().includes('total')) continue;
+
+        const valK = parseIndoCurrency(rawColK);
+        const normTgl = normalizeDateString(rawTglKirim);
+
+        if (docNo) {
+          flowByDocNo[cleanString(docNo)] = valK;
         }
-      }
-    }
 
-    // SINKRONISASI VALUE DARI KOLOM K "Tarikan Flow Report" KE DASHBOARD JADWAL
-    function syncValueFromFlowReport() {
-      if (!rawData.length || !flowReportData.length) return;
-      let updated = false;
-
-      rawData.forEach(row => {
-        if (row.Value === 0) {
-          const targetCust = cleanCompanyName(row.Customer);
-          const targetDate = normalizeDateString(row.Tanggal);
-
-          const matchedRows = flowReportData.filter(f => {
-            if (f.TanggalKirim !== targetDate) return false;
-            if (!targetCust || !f.CleanCust) return false;
-            return f.CleanCust === targetCust || f.CleanCust.includes(targetCust) || targetCust.includes(f.CleanCust);
-          });
-
-          if (matchedRows.length > 0) {
-            // Hindari duplikasi dokumen jika 1 nomor SL muncul lebih dari sekali
-            const uniqueDocs = {};
-            matchedRows.forEach((m, idx) => {
-              const docKey = m.DocNo || `ROW_${idx}`;
-              if (!uniqueDocs[docKey]) {
-                uniqueDocs[docKey] = m.ValueColK;
-              }
-            });
-            const totalVal = Object.values(uniqueDocs).reduce((sum, v) => sum + v, 0);
-            if (totalVal > 0) {
-              row.Value = totalVal;
-              updated = true;
-            }
-          }
-        }
-      });
-
-      if (updated) {
-        if (activeTab === 'dashboard') renderCalendarDashboard();
-        else if (activeTab === 'pickup') renderPickupCalendar();
-        else renderDashboard();
+        flowReportData.push({
+          DocNo: docNo,
+          CleanDocNo: cleanString(docNo),
+          TanggalKirim: normTgl,
+          Customer: rawCust,
+          CleanCust: cleanCompanyName(rawCust),
+          CleanKetM: cleanCompanyName(rawKetM),
+          ValueColK: valK
+        });
       }
     }
 
@@ -631,6 +622,69 @@
           Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
         };
         if (parsed.TanggalKirim || parsed.NamaCustomer) orderDetailsData.push(parsed);
+      }
+    }
+
+    // 3-LAYER MATCHING UNTUK MENGISI VALUE DARI KOLOM K "Tarikan Flow Report"
+    function syncAllMissingValues() {
+      if (!rawData.length || !flowReportData.length) return;
+      let updated = false;
+
+      rawData.forEach(row => {
+        if (row.Value === 0) {
+          const targetDate = normalizeDateString(row.Tanggal);
+          const cleanTargetCust = cleanString(row.Customer);
+          const cleanCompanyTarget = cleanCompanyName(row.Customer);
+          let resolvedValue = 0;
+
+          // JALUR 1: Cari TransactionNumber (SL...) di INPUT ORDER, lalu ambil Kolom K di Tarikan Flow Report
+          if (orderDetailsData.length > 0) {
+            const matchedOrders = orderDetailsData.filter(o => {
+              const oCust = cleanString(o.NamaCustomer);
+              const custMatch = oCust === cleanTargetCust || oCust.includes(cleanTargetCust) || cleanTargetCust.includes(oCust);
+              return custMatch && o.TanggalKirim === targetDate;
+            });
+
+            if (matchedOrders.length > 0) {
+              const uniqueDocs = [...new Set(matchedOrders.map(o => cleanString(o.TransactionNumber)).filter(Boolean))];
+              uniqueDocs.forEach(docKey => {
+                if (flowByDocNo[docKey] !== undefined) {
+                  resolvedValue += flowByDocNo[docKey];
+                }
+              });
+            }
+          }
+
+          // JALUR 2 & 3: Langsung ke Tarikan Flow Report via Tanggal (Kolom C) + Customer (Kolom E) atau Keterangan Outlet (Kolom M)
+          if (resolvedValue === 0 && cleanCompanyTarget.length >= 3) {
+            const matchedFlow = flowReportData.filter(f => {
+              if (f.TanggalKirim !== targetDate) return false;
+              const matchColE = f.CleanCust && (f.CleanCust === cleanCompanyTarget || f.CleanCust.includes(cleanCompanyTarget) || cleanCompanyTarget.includes(f.CleanCust));
+              const matchColM = f.CleanKetM && f.CleanKetM.includes(cleanCompanyTarget);
+              return matchColE || matchColM;
+            });
+
+            if (matchedFlow.length > 0) {
+              const uniqueDocTotals = {};
+              matchedFlow.forEach((m, idx) => {
+                const k = m.CleanDocNo || `IDX_${idx}`;
+                if (!uniqueDocTotals[k]) uniqueDocTotals[k] = m.ValueColK;
+              });
+              resolvedValue = Object.values(uniqueDocTotals).reduce((a, b) => a + b, 0);
+            }
+          }
+
+          if (resolvedValue > 0) {
+            row.Value = resolvedValue;
+            updated = true;
+          }
+        }
+      });
+
+      if (updated) {
+        if (activeTab === 'dashboard') renderCalendarDashboard();
+        else if (activeTab === 'pickup') renderPickupCalendar();
+        else renderDashboard();
       }
     }
 
@@ -772,7 +826,7 @@
           r.Keterangan = newKet;
         }
       });
-      try { localStorage.setItem('cache_raw_jadwal', JSON.stringify(rawData)); } catch (e) {}
+      try { localStorage.setItem('cache_raw_jadwal_v2', JSON.stringify(rawData)); } catch (e) {}
       if (activeTab === 'pickup') renderPickupCalendar();
 
       const url = new URL(WEBHOOK_API_URL);
@@ -1044,7 +1098,7 @@
           r.Status = newStatus;
         }
       });
-      try { localStorage.setItem('cache_raw_jadwal', JSON.stringify(rawData)); } catch (e) {}
+      try { localStorage.setItem('cache_raw_jadwal_v2', JSON.stringify(rawData)); } catch (e) {}
       if (activeTab === 'pickup') renderPickupCalendar();
 
       const url = new URL(WEBHOOK_API_URL);
