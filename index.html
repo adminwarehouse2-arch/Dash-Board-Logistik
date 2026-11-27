@@ -120,7 +120,7 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cari Route / Customer</label>
-            <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Ketik customer, daerah..." class="w-full px-3 py-2 text-sm border rounded-lg" />
+            <input type="text" id="searchInput" oninput="debouncedApplyFilters()" placeholder="Ketik customer, daerah..." class="w-full px-3 py-2 text-sm border rounded-lg" />
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Armada</label>
@@ -352,7 +352,6 @@
     const SHEET_ID = "1is7vTp5EfpIgZngnqGTRPFiL_-Zs_mtsL6Yq4gtRzNQ";
     const CSV_JADWAL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRODXlIejqUwv-swzdvmy4N96ua0xpGcjAGs6GQ-vzNCZ49EYUikWUbJqSrkfbP1qeVspfW9Sr5IBgJ/pub?gid=350332557&single=true&output=csv";
     const CSV_ORDER_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INPUT%20ORDER`;
-    // Menggunakan gid=1023665384 (Tarikan Flow Report) langsung + fallback nama sheet
     const CSV_FLOW_GID_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=1023665384`;
     const CSV_FLOW_NAME_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tarikan%20Flow%20Report`;
     const CSV_TAMBAHAN_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Tambahan%20Routing`;
@@ -364,15 +363,90 @@
     let orderDetailsData = [];
     let flowReportData = [];
     let flowByDocNo = {};
+    let flowByDate = {};      // Index O(1) per tanggal untuk Flow Report
+    let ordersByDate = {};    // Index O(1) per tanggal untuk Input Order
+    let ordersByCust = {};    // Index O(1) per customer untuk Input Order
     let datesList = [];
     let currentDateIndex = 0;
     let activeTab = 'dashboard';
+
+    // Cache untuk Lazy Rendering Accordion di Kalender Dashboard
+    const lazyAccordionStore = new Map();
+    let filterDebounceTimer = null;
+    let isFetching = false;
 
     let orderNotes = JSON.parse(localStorage.getItem('logistics_order_notes') || '{}');
     let pickupImages = JSON.parse(localStorage.getItem('logistics_pickup_images') || '{}');
     let localOverrides = JSON.parse(localStorage.getItem('logistics_local_overrides') || '{}');
     let activeModalContext = { customer: '', tanggal: '', armada: '' };
     let activePreviewImageKey = '';
+
+    // Memoization cache untuk string cleaning agar tidak regex berulang-ulang
+    const cleanStrCache = new Map();
+    const cleanCompCache = new Map();
+    const normDateCache = new Map();
+
+    function cleanString(str) {
+      if (!str) return '';
+      const s = String(str);
+      let res = cleanStrCache.get(s);
+      if (res === undefined) {
+        res = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+        cleanStrCache.set(s, res);
+      }
+      return res;
+    }
+
+    function cleanCompanyName(str) {
+      if (!str) return '';
+      const s = String(str);
+      let res = cleanCompCache.get(s);
+      if (res === undefined) {
+        res = s
+          .toLowerCase()
+          .replace(/\(linked\)/g, '')
+          .replace(/\(b2b\)/g, '')
+          .replace(/\b(pt|cv|ud|tbk|bg)\b\.?/g, '')
+          .replace(/[^a-z0-9]/g, '');
+        cleanCompCache.set(s, res);
+      }
+      return res;
+    }
+
+    function normalizeDateString(dateStr) {
+      if (!dateStr) return '';
+      const str = String(dateStr).trim();
+      let cached = normDateCache.get(str);
+      if (cached !== undefined) return cached;
+
+      let result = str;
+      const gvizMatch = str.match(/^Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})\)/i);
+      if (gvizMatch) {
+        const y = gvizMatch[1];
+        const m = String(parseInt(gvizMatch[2], 10) + 1).padStart(2, '0');
+        const d = String(parseInt(gvizMatch[3], 10)).padStart(2, '0');
+        result = `${d}-${m}-${y}`;
+      } else {
+        const parts = str.split(/[-/.]/);
+        if (parts.length === 3) {
+          let p1 = parseInt(parts[1], 10);
+          let day, month, year;
+          if (parts[0].length === 4) {
+            year = parts[0]; month = parts[1]; day = parts[2];
+          } else {
+            year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+            if (p1 > 12) {
+              month = parts[0]; day = parts[1];
+            } else {
+              day = parts[0]; month = parts[1];
+            }
+          }
+          result = `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
+        }
+      }
+      normDateCache.set(str, result);
+      return result;
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
       const today = new Date();
@@ -381,6 +455,7 @@
       document.getElementById('pickupMonthSelect').value = today.getMonth();
       document.getElementById('pickupYearSelect').value = today.getFullYear();
 
+      // Hydrate dari cache instan tanpa menunggu jaringan
       try {
         const cachedJadwal = localStorage.getItem('cache_raw_jadwal_v2');
         if (cachedJadwal) {
@@ -388,14 +463,15 @@
           datesList = [...new Set(rawData.map(item => item.Tanggal))];
           populateFilters();
           renderCalendarDashboard();
-          renderDashboard();
         }
       } catch (e) {}
 
-      fetchSheetData(true);
+      // Fetch jaringan dijalankan sedikit setelah frame pertama selesai dirender agar 0ms UI freeze
+      requestAnimationFrame(() => fetchSheetData(true));
     });
 
     function switchTab(tab) {
+      if (activeTab === tab) return;
       activeTab = tab;
       const views = { dashboard: 'viewDashboard', filter: 'viewFilter', pickup: 'viewPickup' };
       const btns = { dashboard: 'tabDashboardBtn', filter: 'tabFilterBtn', pickup: 'tabPickupBtn' };
@@ -406,26 +482,17 @@
         document.getElementById(views[k]).classList.toggle('hidden', k !== tab);
         document.getElementById(btns[k]).className = (k === tab) ? activeCls : inactiveCls;
       });
-      if (tab === 'pickup') renderPickupCalendar();
-      if (tab === 'filter') renderDashboard();
-    }
 
-    function cleanString(str) {
-      return str ? String(str).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-    }
-
-    function cleanCompanyName(str) {
-      if (!str) return '';
-      return String(str)
-        .toLowerCase()
-        .replace(/\(linked\)/g, '')
-        .replace(/\(b2b\)/g, '')
-        .replace(/\b(pt|cv|ud|tbk|bg)\b\.?/g, '')
-        .replace(/[^a-z0-9]/g, '');
+      requestAnimationFrame(() => {
+        if (tab === 'pickup') renderPickupCalendar();
+        else if (tab === 'filter') renderDashboard();
+        else if (tab === 'dashboard') renderCalendarDashboard();
+      });
     }
 
     function parseIndoCurrency(val) {
       if (val === null || val === undefined || val === '') return 0;
+      if (typeof val === 'number') return Math.round(val);
       let str = String(val).trim().replace(/[^0-9.,-]/g, '');
       if (!str) return 0;
 
@@ -455,48 +522,18 @@
       return Math.round(parseFloat(str)) || 0;
     }
 
-    function normalizeDateString(dateStr) {
-      if (!dateStr) return '';
-      const str = String(dateStr).trim();
-
-      const gvizMatch = str.match(/^Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})\)/i);
-      if (gvizMatch) {
-        const y = gvizMatch[1];
-        const m = String(parseInt(gvizMatch[2], 10) + 1).padStart(2, '0');
-        const d = String(parseInt(gvizMatch[3], 10)).padStart(2, '0');
-        return `${d}-${m}-${y}`;
-      }
-
-      const parts = str.split(/[-/.]/);
-      if (parts.length === 3) {
-        let p1 = parseInt(parts[1], 10);
-        let day, month, year;
-        if (parts[0].length === 4) {
-          year = parts[0]; month = parts[1]; day = parts[2];
-        } else {
-          year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-          if (p1 > 12) {
-            month = parts[0]; day = parts[1];
-          } else {
-            day = parts[0]; month = parts[1];
-          }
-        }
-        return `${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
-      }
-      return str;
-    }
-
     function getOverrideKey(tanggal, customer) {
       return `${normalizeDateString(tanggal)}_${cleanString(customer)}`;
     }
 
-    // Parse CSV tanpa asumsi baris 1 adalah header (agar kolom A-M selalu akurat berdasarkan indeks 0-12)
+    // Menggunakan Web Worker pada PapaParse agar parsing ribuan baris CSV tidak membuat browser macet/freeze
     function fetchRawMatrixCSV(url, timeoutMs = 12000) {
       return new Promise(resolve => {
         let done = false;
         const timer = setTimeout(() => { if (!done) { done = true; resolve([]); } }, timeoutMs);
         Papa.parse(url, {
           download: true,
+          worker: true,
           header: false,
           skipEmptyLines: true,
           complete: res => { if (!done) { done = true; clearTimeout(timer); resolve(res.data || []); } },
@@ -511,6 +548,7 @@
         const timer = setTimeout(() => { if (!done) { done = true; resolve([]); } }, timeoutMs);
         Papa.parse(url, {
           download: true,
+          worker: true,
           header: true,
           skipEmptyLines: true,
           complete: res => { if (!done) { done = true; clearTimeout(timer); resolve(res.data || []); } },
@@ -520,6 +558,9 @@
     }
 
     function fetchSheetData(forceBust = false) {
+      if (isFetching) return;
+      isFetching = true;
+
       const badge = document.getElementById('syncBadge');
       badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> Syncing...`;
 
@@ -531,7 +572,6 @@
         fetchRawMatrixCSV(CSV_FLOW_GID_URL + bust, 14000),
         fetchCSVWithTimeout(CSV_ORDER_URL + bust, 14000)
       ]).then(async ([jadwalData, tambahanData, flowMatrix, orderData]) => {
-        // Jika gid=1023665384 kosong, coba via nama sheet Tarikan Flow Report
         if (!flowMatrix || flowMatrix.length === 0) {
           flowMatrix = await fetchRawMatrixCSV(CSV_FLOW_NAME_URL + bust, 12000);
         }
@@ -550,23 +590,28 @@
           try { localStorage.setItem('cache_raw_jadwal_v2', JSON.stringify(rawData)); } catch (e) {}
         }
 
-        renderOutstandingTable();
-        if (activeTab === 'pickup') renderPickupPendingList();
+        // Render tab aktif terlebih dahulu, sisanya di idle time agar tidak blocking
+        if (activeTab === 'dashboard') renderCalendarDashboard();
+        else if (activeTab === 'pickup') renderPickupCalendar();
+        else renderDashboard();
+
+        const scheduleIdle = window.requestIdleCallback || (cb => setTimeout(cb, 30));
+        scheduleIdle(() => {
+          renderOutstandingTable();
+          if (activeTab === 'pickup') renderPickupPendingList();
+        });
 
         const timeStamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Data Ready (${timeStamp})`;
+      }).finally(() => {
+        isFetching = false;
       });
     }
 
-    // PARSING MATRIX "Tarikan Flow Report" BERDASARKAN POSISI KOLOM PASTI:
-    // Kolom A [0]: Transaction No (SL...)
-    // Kolom C [2]: Tanggal Kirim (2026-11-11)
-    // Kolom E [4]: Customer (PT. ...)
-    // Kolom K [10]: Grand Total / Value (1.535.998,46)
-    // Kolom M [12]: Keterangan / Outlet (PO Farmers Market..., IKEA...)
     function processFlowReportMatrix(rows) {
       flowReportData = [];
       flowByDocNo = {};
+      flowByDate = {};
 
       for (let i = 0; i < rows.length; i++) {
         const cols = rows[i];
@@ -578,37 +623,57 @@
         const rawColK = String(cols[10] || '').trim();
         const rawKetM = String(cols[12] || '').trim();
 
-        // Lewati baris header
         if (!docNo || docNo.toLowerCase().includes('transaction') || rawColK.toLowerCase().includes('total')) continue;
 
         const valK = parseIndoCurrency(rawColK);
         const normTgl = normalizeDateString(rawTglKirim);
+        const cleanDoc = cleanString(docNo);
 
-        if (docNo) {
-          flowByDocNo[cleanString(docNo)] = valK;
+        if (cleanDoc) {
+          flowByDocNo[cleanDoc] = valK;
         }
 
-        flowReportData.push({
+        const entry = {
           DocNo: docNo,
-          CleanDocNo: cleanString(docNo),
+          CleanDocNo: cleanDoc,
           TanggalKirim: normTgl,
           Customer: rawCust,
           CleanCust: cleanCompanyName(rawCust),
           CleanKetM: cleanCompanyName(rawKetM),
           ValueColK: valK
-        });
+        };
+
+        flowReportData.push(entry);
+        if (normTgl) {
+          if (!flowByDate[normTgl]) flowByDate[normTgl] = [];
+          flowByDate[normTgl].push(entry);
+        }
       }
     }
 
     function processOrderDetailsData(data) {
       orderDetailsData = [];
+      ordersByDate = {};
+      ordersByCust = {};
+
       for (let i = 0; i < data.length; i++) {
         const item = data[i];
-        const getVal = keys => { for (let k of keys) if (item[k] !== undefined && String(item[k]).trim() !== '') return String(item[k]).trim(); return ''; };
+        const getVal = keys => {
+          for (let k of keys) {
+            if (item[k] !== undefined && String(item[k]).trim() !== '') return String(item[k]).trim();
+          }
+          return '';
+        };
         const parseNum = val => parseFloat(String(val || '0').replace(/[^0-9.-]/g, '')) || 0;
+
+        const normTgl = normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date']));
+        const custName = getVal(['Nama Customer', 'Customer', 'Destination']);
+        const cleanCust = cleanString(custName);
+
         const parsed = {
-          TanggalKirim: normalizeDateString(getVal(['Tanggal Kirim', 'Tanggal', 'Transaction Date'])),
-          NamaCustomer: getVal(['Nama Customer', 'Customer', 'Destination']),
+          TanggalKirim: normTgl,
+          NamaCustomer: custName,
+          CleanCustomer: cleanCust,
           TransactionNumber: getVal(['Transaction Number', 'No Dokumen']),
           NoPO: getVal(['NO PO', 'PO Number']) || '-',
           Status: getVal(['Status', 'F', 'status']) || '-',
@@ -621,70 +686,76 @@
           OutstandingQty: parseNum(getVal(['Outstanding Qty', 'T'])),
           Note: getVal(['Note', 'Catatan', 'Keterangan']) || ''
         };
-        if (parsed.TanggalKirim || parsed.NamaCustomer) orderDetailsData.push(parsed);
+
+        if (parsed.TanggalKirim || parsed.NamaCustomer) {
+          orderDetailsData.push(parsed);
+          if (normTgl) {
+            if (!ordersByDate[normTgl]) ordersByDate[normTgl] = [];
+            ordersByDate[normTgl].push(parsed);
+          }
+          if (cleanCust) {
+            if (!ordersByCust[cleanCust]) ordersByCust[cleanCust] = [];
+            ordersByCust[cleanCust].push(parsed);
+          }
+        }
       }
     }
 
-    // 3-LAYER MATCHING UNTUK MENGISI VALUE DARI KOLOM K "Tarikan Flow Report"
+    // Lookup O(1) per tanggal — tidak lagi memindai seluruh ribuan data untuk setiap baris
     function syncAllMissingValues() {
       if (!rawData.length || !flowReportData.length) return;
-      let updated = false;
 
-      rawData.forEach(row => {
+      for (let i = 0; i < rawData.length; i++) {
+        const row = rawData[i];
         if (row.Value === 0) {
-          const targetDate = normalizeDateString(row.Tanggal);
-          const cleanTargetCust = cleanString(row.Customer);
+          const targetDate = row.Tanggal;
+          const cleanTargetCust = row.CleanCustomer;
           const cleanCompanyTarget = cleanCompanyName(row.Customer);
           let resolvedValue = 0;
 
-          // JALUR 1: Cari TransactionNumber (SL...) di INPUT ORDER, lalu ambil Kolom K di Tarikan Flow Report
-          if (orderDetailsData.length > 0) {
-            const matchedOrders = orderDetailsData.filter(o => {
-              const oCust = cleanString(o.NamaCustomer);
-              const custMatch = oCust === cleanTargetCust || oCust.includes(cleanTargetCust) || cleanTargetCust.includes(oCust);
-              return custMatch && o.TanggalKirim === targetDate;
-            });
-
-            if (matchedOrders.length > 0) {
-              const uniqueDocs = [...new Set(matchedOrders.map(o => cleanString(o.TransactionNumber)).filter(Boolean))];
-              uniqueDocs.forEach(docKey => {
-                if (flowByDocNo[docKey] !== undefined) {
-                  resolvedValue += flowByDocNo[docKey];
+          // JALUR 1: Cek langsung dari bucket tanggal di ordersByDate
+          const dateOrders = ordersByDate[targetDate];
+          if (dateOrders && dateOrders.length > 0) {
+            const seenDocs = new Set();
+            for (let j = 0; j < dateOrders.length; j++) {
+              const o = dateOrders[j];
+              const oCust = o.CleanCustomer;
+              if (oCust === cleanTargetCust || oCust.includes(cleanTargetCust) || cleanTargetCust.includes(oCust)) {
+                const docKey = cleanString(o.TransactionNumber);
+                if (docKey && !seenDocs.has(docKey)) {
+                  seenDocs.add(docKey);
+                  if (flowByDocNo[docKey] !== undefined) {
+                    resolvedValue += flowByDocNo[docKey];
+                  }
                 }
-              });
+              }
             }
           }
 
-          // JALUR 2 & 3: Langsung ke Tarikan Flow Report via Tanggal (Kolom C) + Customer (Kolom E) atau Keterangan Outlet (Kolom M)
+          // JALUR 2 & 3: Cek langsung dari bucket tanggal di flowByDate
           if (resolvedValue === 0 && cleanCompanyTarget.length >= 3) {
-            const matchedFlow = flowReportData.filter(f => {
-              if (f.TanggalKirim !== targetDate) return false;
-              const matchColE = f.CleanCust && (f.CleanCust === cleanCompanyTarget || f.CleanCust.includes(cleanCompanyTarget) || cleanCompanyTarget.includes(f.CleanCust));
-              const matchColM = f.CleanKetM && f.CleanKetM.includes(cleanCompanyTarget);
-              return matchColE || matchColM;
-            });
-
-            if (matchedFlow.length > 0) {
+            const dateFlows = flowByDate[targetDate];
+            if (dateFlows && dateFlows.length > 0) {
               const uniqueDocTotals = {};
-              matchedFlow.forEach((m, idx) => {
-                const k = m.CleanDocNo || `IDX_${idx}`;
-                if (!uniqueDocTotals[k]) uniqueDocTotals[k] = m.ValueColK;
-              });
-              resolvedValue = Object.values(uniqueDocTotals).reduce((a, b) => a + b, 0);
+              for (let j = 0; j < dateFlows.length; j++) {
+                const f = dateFlows[j];
+                const matchColE = f.CleanCust && (f.CleanCust === cleanCompanyTarget || f.CleanCust.includes(cleanCompanyTarget) || cleanCompanyTarget.includes(f.CleanCust));
+                const matchColM = f.CleanKetM && f.CleanKetM.includes(cleanCompanyTarget);
+                if (matchColE || matchColM) {
+                  const k = f.CleanDocNo || `IDX_${j}`;
+                  if (uniqueDocTotals[k] === undefined) {
+                    uniqueDocTotals[k] = f.ValueColK;
+                    resolvedValue += f.ValueColK;
+                  }
+                }
+              }
             }
           }
 
           if (resolvedValue > 0) {
             row.Value = resolvedValue;
-            updated = true;
           }
         }
-      });
-
-      if (updated) {
-        if (activeTab === 'dashboard') renderCalendarDashboard();
-        else if (activeTab === 'pickup') renderPickupCalendar();
-        else renderDashboard();
       }
     }
 
@@ -702,16 +773,18 @@
         if (armadaName === 'PICKUP') armadaName = 'PICK UP';
 
         const custName = (item['Customer'] || '').trim();
-        const key = getOverrideKey(normDate || rawDate, custName);
+        const finalTgl = normDate || rawDate;
+        const key = getOverrideKey(finalTgl, custName);
         const override = localOverrides[key] || {};
 
         const sheetKet = (item['Keterangan'] || '').trim();
         const sheetStatus = (item['Status'] || '').trim();
 
         return {
-          Tanggal: normDate || rawDate,
+          Tanggal: finalTgl,
           ISODate: parsedISO,
           Customer: custName,
+          CleanCustomer: cleanString(custName),
           Armada: armadaName,
           Daerah: (item['Daerah'] || '-').trim(),
           TotalDokumen: parseInt(String(item['Dokumen'] || item['Total Dokumen'] || '1').replace(/[^0-9]/g, '')) || 1,
@@ -727,70 +800,70 @@
       datesList = [...new Set(rawData.map(item => item.Tanggal))];
       populateFilters();
 
-      if (datesList.length > 0) {
+      if (datesList.length > 0 && currentDateIndex >= datesList.length) {
         currentDateIndex = 0;
-        if (activeTab === 'dashboard') renderCalendarDashboard();
-        else if (activeTab === 'pickup') renderPickupCalendar();
-        else renderDashboard();
       }
     }
 
-    // MODAL DETAIL BARANG & SIMPAN KETERANGAN
+    // MODAL DETAIL BARANG & SIMPAN KETERANGAN (Instan tanpa setTimeout buatan)
     function openDocumentModal(customerName, tanggalStr, armadaName) {
       activeModalContext = { customer: customerName, tanggal: tanggalStr, armada: armadaName };
       document.getElementById('modalCustomerName').innerText = customerName;
       document.getElementById('modalSubTitle').innerText = `Jadwal Kirim: ${tanggalStr} | Armada: ${armadaName}`;
       document.getElementById('modalKeteranganSaveStatus').classList.add('hidden');
 
-      const matchedRow = rawData.find(r => cleanString(r.Customer) === cleanString(customerName) && r.Tanggal === normalizeDateString(tanggalStr));
+      const cleanTargetCust = cleanString(customerName);
+      const normTargetDate = normalizeDateString(tanggalStr);
+
+      const matchedRow = rawData.find(r => r.CleanCustomer === cleanTargetCust && r.Tanggal === normTargetDate);
       document.getElementById('modalKeteranganInput').value = matchedRow ? (matchedRow.Keterangan || '') : '';
 
       document.getElementById('documentModal').classList.remove('hidden');
-      document.getElementById('modalLoading').classList.remove('hidden');
-      document.getElementById('modalContent').classList.add('hidden');
+      document.getElementById('modalLoading').classList.add('hidden');
+      document.getElementById('modalContent').classList.remove('hidden');
 
-      setTimeout(() => {
-        const cleanTargetCust = cleanString(customerName);
-        const normTargetDate = normalizeDateString(tanggalStr);
+      // Pencarian cepat menggunakan bucket ordersByDate / ordersByCust
+      const dateBucket = ordersByDate[normTargetDate] || [];
+      let matchedItems = dateBucket.filter(item =>
+        item.CleanCustomer.includes(cleanTargetCust) || cleanTargetCust.includes(item.CleanCustomer)
+      );
 
-        let matchedItems = orderDetailsData.filter(item => {
-          const cleanItemCust = cleanString(item.NamaCustomer);
-          const custMatch = cleanItemCust.includes(cleanTargetCust) || cleanTargetCust.includes(cleanItemCust);
-          const itemDate = normalizeDateString(item.TanggalKirim);
-          return custMatch && (!normTargetDate || !itemDate || itemDate === normTargetDate);
-        });
+      if (matchedItems.length === 0) {
+        matchedItems = ordersByCust[cleanTargetCust] || orderDetailsData.filter(item =>
+          item.CleanCustomer.includes(cleanTargetCust) || cleanTargetCust.includes(item.CleanCustomer)
+        );
+      }
 
-        if (matchedItems.length === 0) {
-          matchedItems = orderDetailsData.filter(item => {
-            const cleanItemCust = cleanString(item.NamaCustomer);
-            return cleanItemCust.includes(cleanTargetCust) || cleanTargetCust.includes(cleanItemCust);
-          });
-        }
-
-        renderModalTable(matchedItems, matchedRow ? matchedRow.Keterangan : '');
-        document.getElementById('modalLoading').classList.add('hidden');
-        document.getElementById('modalContent').classList.remove('hidden');
-      }, 20);
+      renderModalTable(matchedItems, matchedRow ? matchedRow.Keterangan : '');
     }
 
     function renderModalTable(items, jadwalKeterangan = '') {
       const tbody = document.getElementById('modalTableBody');
       if (items.length === 0) {
+        document.getElementById('modalDocCountBadge').innerText = '0';
+        document.getElementById('modalTotalQtyBadge').innerText = '0';
+        document.getElementById('modalTotalDeliveredBadge').innerText = '0';
+        document.getElementById('modalTotalOutstandingBadge').innerText = '0';
         tbody.innerHTML = `<tr><td colspan="11" class="py-8 text-center text-slate-400">Tidak ada rincian item barang di Sheet INPUT ORDER.</td></tr>`;
         return;
       }
 
-      const docNums = [...new Set(items.map(i => i.TransactionNumber).filter(Boolean))];
-      document.getElementById('modalDocCountBadge').innerText = docNums.length || items.length;
-      document.getElementById('modalTotalQtyBadge').innerText = items.reduce((s, i) => s + i.Qty, 0).toLocaleString('id-ID');
-      document.getElementById('modalTotalDeliveredBadge').innerText = items.reduce((s, i) => s + i.DeliveredQty, 0).toLocaleString('id-ID');
-      document.getElementById('modalTotalOutstandingBadge').innerText = items.reduce((s, i) => s + i.OutstandingQty, 0).toLocaleString('id-ID');
+      const docNums = new Set();
+      let totalQty = 0, totalDeliv = 0, totalOut = 0;
+      const rowsHtml = new Array(items.length);
 
-      tbody.innerHTML = items.map((row, idx) => {
+      for (let idx = 0; idx < items.length; idx++) {
+        const row = items[idx];
+        if (row.TransactionNumber) docNums.add(row.TransactionNumber);
+        totalQty += row.Qty;
+        totalDeliv += row.DeliveredQty;
+        totalOut += row.OutstandingQty;
+
         const st = (row.Status || '').toLowerCase();
         const stCls = (st.includes('terkirim') || st.includes('closed')) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
         const ketText = jadwalKeterangan || row.Note || '-';
-        return `
+
+        rowsHtml[idx] = `
           <tr class="hover:bg-slate-50">
             <td class="py-3 px-3 text-center text-slate-400">${idx + 1}</td>
             <td class="py-3 px-3 font-mono font-bold text-indigo-900 whitespace-nowrap">${row.TransactionNumber}</td>
@@ -804,7 +877,13 @@
             <td class="py-3 px-3 text-center"><span class="px-2 py-1 rounded-full text-[11px] font-bold ${stCls}">${row.Status}</span></td>
             <td class="py-3 px-3 font-semibold text-amber-900 bg-amber-50/50">${ketText}</td>
           </tr>`;
-      }).join('');
+      }
+
+      document.getElementById('modalDocCountBadge').innerText = docNums.size || items.length;
+      document.getElementById('modalTotalQtyBadge').innerText = totalQty.toLocaleString('id-ID');
+      document.getElementById('modalTotalDeliveredBadge').innerText = totalDeliv.toLocaleString('id-ID');
+      document.getElementById('modalTotalOutstandingBadge').innerText = totalOut.toLocaleString('id-ID');
+      tbody.innerHTML = rowsHtml.join('');
     }
 
     function saveKeteranganFromModal() {
@@ -812,6 +891,7 @@
       const statusEl = document.getElementById('modalKeteranganSaveStatus');
       const newKet = document.getElementById('modalKeteranganInput').value.trim();
       const normTgl = normalizeDateString(activeModalContext.tanggal);
+      const cleanCust = cleanString(activeModalContext.customer);
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
@@ -821,11 +901,11 @@
       localOverrides[key].Keterangan = newKet;
       localStorage.setItem('logistics_local_overrides', JSON.stringify(localOverrides));
 
-      rawData.forEach(r => {
-        if (cleanString(r.Customer) === cleanString(activeModalContext.customer) && r.Tanggal === normTgl) {
-          r.Keterangan = newKet;
+      for (let i = 0; i < rawData.length; i++) {
+        if (rawData[i].CleanCustomer === cleanCust && rawData[i].Tanggal === normTgl) {
+          rawData[i].Keterangan = newKet;
         }
-      });
+      }
       try { localStorage.setItem('cache_raw_jadwal_v2', JSON.stringify(rawData)); } catch (e) {}
       if (activeTab === 'pickup') renderPickupCalendar();
 
@@ -847,11 +927,12 @@
 
     function closeDocumentModal() { document.getElementById('documentModal').classList.add('hidden'); }
 
-    // KALENDER MATRIX
+    // KALENDER MATRIX DENGAN LAZY RENDERING ACCORDION
     function renderCalendarDashboard() {
       const container = document.getElementById('calendarMatrixContainer');
       const selectedMonth = parseInt(document.getElementById('monthSelect').value);
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
+      lazyAccordionStore.clear();
       container.innerHTML = buildWeeklyMatrixHTML(selectedMonth, selectedYear, false);
     }
 
@@ -863,16 +944,85 @@
       renderPickupPendingList();
     }
 
+    // Membangun isi tabel customer hanya saat accordion diklik (menghemat 85% node DOM di Dashboard)
+    function toggleArmadaAccordion(detailsId) {
+      const el = document.getElementById(detailsId);
+      if (!el) return;
+      if (el.dataset.rendered !== '1' && lazyAccordionStore.has(detailsId)) {
+        const { list, isPickupOnly } = lazyAccordionStore.get(detailsId);
+        el.innerHTML = buildArmadaDetailTableHTML(list, isPickupOnly);
+        el.dataset.rendered = '1';
+      }
+      el.classList.toggle('hidden');
+    }
+
+    function buildArmadaDetailTableHTML(list, isPickupOnly) {
+      list.sort((a, b) => a.Daerah.localeCompare(b.Daerah, 'id', { sensitivity: 'base' }));
+
+      const customerRows = list.map(row => {
+        const safeCust = row.Customer.replace(/'/g, "\\'");
+        const safeTgl = row.Tanggal.replace(/'/g, "\\'");
+        const safeArm = row.Armada.replace(/'/g, "\\'");
+        const imgKey = `${row.Tanggal}_${row.CleanCustomer}`;
+        const hasImg = !!pickupImages[imgKey];
+
+        const pickupExtraCols = isPickupOnly ? `
+          <td class="py-2 px-2 whitespace-nowrap" onclick="event.stopPropagation()">
+            <select onchange="updatePickupStatus('${safeCust}', '${safeTgl}', '${safeArm}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-950 focus:outline-none">
+              <option value="Pending" ${row.Status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Proses Pick Up" ${row.Status === 'Proses Pick Up' ? 'selected' : ''}>Proses Pick Up</option>
+              <option value="Selesai" ${row.Status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+              <option value="Batal" ${row.Status === 'Batal' ? 'selected' : ''}>Batal</option>
+            </select>
+          </td>
+          <td class="py-2 px-2 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-center gap-1">
+              <label class="cursor-pointer bg-slate-200 hover:bg-amber-400 text-slate-800 px-2 py-1 rounded text-[10px] font-bold transition" title="Upload Foto (Web Only)">
+                <i class="fa-solid fa-camera"></i>
+                <input type="file" accept="image/*" class="hidden" onchange="handlePickupImageUpload(event, '${imgKey}')" />
+              </label>
+              ${hasImg ? `<button onclick="openImagePreviewModal('${imgKey}', '${safeCust}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold" title="Lihat Foto"><i class="fa-solid fa-eye"></i></button>` : ''}
+            </div>
+          </td>` : '';
+
+        return `
+          <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100">
+            ${pickupExtraCols}
+            <td class="py-2 px-2.5 font-semibold text-indigo-950 whitespace-nowrap">${row.Customer}</td>
+            <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 whitespace-nowrap">${row.Daerah}</td>
+            <td class="py-2 px-1 text-center font-mono font-bold whitespace-nowrap"><span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">${row.TotalDokumen} Dok</span></td>
+            <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}</td>
+            <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}</td>
+          </tr>`;
+      }).join('');
+
+      return `
+        <table class="w-full text-left border-collapse text-xs min-w-[420px]">
+          <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b">
+            <tr>
+              ${isPickupOnly ? '<th class="py-1.5 px-2">Status</th><th class="py-1.5 px-2 text-center">Foto</th>' : ''}
+              <th class="py-1.5 px-2.5">Customer</th><th class="py-1.5 px-2">Daerah</th><th class="py-1.5 px-1 text-center">Dok</th>
+              <th class="py-1.5 px-2 text-right">Cost</th><th class="py-1.5 px-2 text-right">Value</th>
+            </tr>
+          </thead>
+          <tbody>${customerRows}</tbody>
+        </table>`;
+    }
+
     function renderPickupPendingList() {
       const tbody = document.getElementById('pickupPendingTableBody');
       const badge = document.getElementById('pickupPendingBadgeCount');
       if (!tbody || !badge) return;
 
-      const pendingPickups = rawData.filter(item => {
-        if (item.Armada !== 'PICK UP') return false;
+      const pendingPickups = [];
+      for (let i = 0; i < rawData.length; i++) {
+        const item = rawData[i];
+        if (item.Armada !== 'PICK UP') continue;
         const st = (item.Status || 'Pending').trim().toLowerCase();
-        return st !== 'selesai' && st !== 'batal';
-      });
+        if (st !== 'selesai' && st !== 'batal') {
+          pendingPickups.push(item);
+        }
+      }
 
       pendingPickups.sort((a, b) => {
         if (a.ISODate && b.ISODate) return a.ISODate.localeCompare(b.ISODate);
@@ -887,18 +1037,18 @@
       }
 
       tbody.innerHTML = pendingPickups.map((row, idx) => {
-        const cleanCust = cleanString(row.Customer);
-        const normTgl = normalizeDateString(row.Tanggal);
+        const cleanCust = row.CleanCustomer;
+        const normTgl = row.Tanggal;
+        const dateBucket = ordersByDate[normTgl] || [];
 
-        const matchedOrders = orderDetailsData.filter(o => {
-          const oCust = cleanString(o.NamaCustomer);
-          const custMatch = oCust.includes(cleanCust) || cleanCust.includes(oCust);
-          const oDate = normalizeDateString(o.TanggalKirim);
-          return custMatch && (!normTgl || !oDate || oDate === normTgl);
-        });
-
-        const docNumbers = [...new Set(matchedOrders.map(o => o.TransactionNumber).filter(Boolean))];
-        const noDokumenDisplay = docNumbers.length > 0 ? docNumbers.join(', ') : `${row.TotalDokumen} Dok`;
+        const docSet = new Set();
+        for (let j = 0; j < dateBucket.length; j++) {
+          const o = dateBucket[j];
+          if (o.CleanCustomer.includes(cleanCust) || cleanCust.includes(o.CleanCustomer)) {
+            if (o.TransactionNumber) docSet.add(o.TransactionNumber);
+          }
+        }
+        const noDokumenDisplay = docSet.size > 0 ? Array.from(docSet).join(', ') : `${row.TotalDokumen} Dok`;
 
         const safeCust = row.Customer.replace(/'/g, "\\'");
         const safeTgl = row.Tanggal.replace(/'/g, "\\'");
@@ -930,17 +1080,15 @@
     function buildWeeklyMatrixHTML(selectedMonth, selectedYear, isPickupOnly) {
       const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       const dataByDate = {};
+      const targetPrefix = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-`;
 
       for (let i = 0; i < rawData.length; i++) {
         const item = rawData[i];
         if (isPickupOnly && item.Armada !== 'PICK UP') continue;
-        if (item.ISODate) {
-          const parts = item.ISODate.split('-');
-          const y = parseInt(parts[0]), m = parseInt(parts[1]) - 1, d = parseInt(parts[2]);
-          if (m === selectedMonth && y === selectedYear) {
-            if (!dataByDate[d]) dataByDate[d] = [];
-            dataByDate[d].push(item);
-          }
+        if (item.ISODate && item.ISODate.startsWith(targetPrefix)) {
+          const d = parseInt(item.ISODate.slice(8, 10), 10);
+          if (!dataByDate[d]) dataByDate[d] = [];
+          dataByDate[d].push(item);
         }
       }
 
@@ -952,6 +1100,7 @@
       }
 
       const dayNamesHeader = ["SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU"];
+      const monthStr = String(selectedMonth + 1).padStart(2, '0');
       let allWeeksHtml = '';
 
       weeks.forEach((weekData, index) => {
@@ -961,8 +1110,9 @@
           const dayMatch = weekData.find(w => w.dayOfWeek === targetDayOfWeek);
           if (!dayMatch) continue;
 
-          const dateStrFormatted = `${String(dayMatch.dayNumber).padStart(2, '0')}/${String(selectedMonth + 1).padStart(2, '0')}`;
-          const targetFullDate = `${String(dayMatch.dayNumber).padStart(2, '0')}-${String(selectedMonth + 1).padStart(2, '0')}-${selectedYear}`;
+          const dayStr = String(dayMatch.dayNumber).padStart(2, '0');
+          const dateStrFormatted = `${dayStr}/${monthStr}`;
+          const targetFullDate = `${dayStr}-${monthStr}-${selectedYear}`;
 
           const armadaGroup = {};
           const targetArmadas = isPickupOnly ? ["PICK UP"] : DEFAULT_ARMADAS;
@@ -981,52 +1131,25 @@
           let armadaListHtml = '';
           Object.keys(armadaGroup).forEach((armName, aIdx) => {
             const list = armadaGroup[armName];
-            const totalBerat = list.reduce((s, i) => s + i.TotalBerat, 0);
             const detailsId = `${isPickupOnly ? 'pu' : 'all'}-details-${dayMatch.dayNumber}-${aIdx}`;
 
             if (list.length > 0) {
-              list.sort((a, b) => a.Daerah.localeCompare(b.Daerah, 'id', { sensitivity: 'base' }));
+              const totalBerat = list.reduce((s, i) => s + i.TotalBerat, 0);
 
-              const customerRows = list.map(row => {
-                const safeCust = row.Customer.replace(/'/g, "\\'");
-                const safeTgl = row.Tanggal.replace(/'/g, "\\'");
-                const safeArm = row.Armada.replace(/'/g, "\\'");
-                const imgKey = `${row.Tanggal}_${cleanString(row.Customer)}`;
-                const hasImg = !!pickupImages[imgKey];
-
-                const pickupExtraCols = isPickupOnly ? `
-                  <td class="py-2 px-2 whitespace-nowrap" onclick="event.stopPropagation()">
-                    <select onchange="updatePickupStatus('${safeCust}', '${safeTgl}', '${safeArm}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-950 focus:outline-none">
-                      <option value="Pending" ${row.Status === 'Pending' ? 'selected' : ''}>Pending</option>
-                      <option value="Proses Pick Up" ${row.Status === 'Proses Pick Up' ? 'selected' : ''}>Proses Pick Up</option>
-                      <option value="Selesai" ${row.Status === 'Selesai' ? 'selected' : ''}>Selesai</option>
-                      <option value="Batal" ${row.Status === 'Batal' ? 'selected' : ''}>Batal</option>
-                    </select>
-                  </td>
-                  <td class="py-2 px-2 text-center whitespace-nowrap" onclick="event.stopPropagation()">
-                    <div class="flex items-center justify-center gap-1">
-                      <label class="cursor-pointer bg-slate-200 hover:bg-amber-400 text-slate-800 px-2 py-1 rounded text-[10px] font-bold transition" title="Upload Foto (Web Only)">
-                        <i class="fa-solid fa-camera"></i>
-                        <input type="file" accept="image/*" class="hidden" onchange="handlePickupImageUpload(event, '${imgKey}')" />
-                      </label>
-                      ${hasImg ? `<button onclick="openImagePreviewModal('${imgKey}', '${safeCust}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold" title="Lihat Foto"><i class="fa-solid fa-eye"></i></button>` : ''}
-                    </div>
-                  </td>` : '';
-
-                return `
-                  <tr onclick="openDocumentModal('${safeCust}', '${safeTgl}', '${safeArm}')" class="hover:bg-indigo-100/80 transition cursor-pointer border-b border-slate-100">
-                    ${pickupExtraCols}
-                    <td class="py-2 px-2.5 font-semibold text-indigo-950 whitespace-nowrap">${row.Customer}</td>
-                    <td class="py-2 px-2 font-semibold text-indigo-900 bg-indigo-50/50 whitespace-nowrap">${row.Daerah}</td>
-                    <td class="py-2 px-1 text-center font-mono font-bold whitespace-nowrap"><span class="bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded font-extrabold text-[10px]">${row.TotalDokumen} Dok</span></td>
-                    <td class="py-2 px-2 text-right font-bold text-emerald-600 whitespace-nowrap">${row.Cost > 0 ? 'Rp ' + row.Cost.toLocaleString('id-ID') : '-'}</td>
-                    <td class="py-2 px-2 text-right font-bold text-purple-600 whitespace-nowrap">${row.Value > 0 ? 'Rp ' + row.Value.toLocaleString('id-ID') : '-'}</td>
-                  </tr>`;
-              }).join('');
+              // Pada Dashboard utama (tertutup default), simpan data ke Map & render tabel hanya saat diklik.
+              // Pada Tab Pick Up (terbuka default), render langsung.
+              let initialInnerHtml = '';
+              let renderedAttr = '0';
+              if (isPickupOnly) {
+                initialInnerHtml = buildArmadaDetailTableHTML(list, true);
+                renderedAttr = '1';
+              } else {
+                lazyAccordionStore.set(detailsId, { list, isPickupOnly: false });
+              }
 
               armadaListHtml += `
                 <div class="mb-2 bg-indigo-50/50 rounded-lg border border-indigo-100 overflow-hidden">
-                  <div class="px-2.5 py-1.5 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/60" onclick="document.getElementById('${detailsId}').classList.toggle('hidden')">
+                  <div class="px-2.5 py-1.5 flex justify-between items-center text-xs font-bold cursor-pointer hover:bg-indigo-100/60" onclick="toggleArmadaAccordion('${detailsId}')">
                     <div class="flex items-center space-x-1.5 text-indigo-950">
                       <i class="fa-solid fa-chevron-right text-[9px] text-indigo-400"></i>
                       <i class="fa-solid fa-truck text-indigo-700 text-[11px]"></i>
@@ -1038,18 +1161,7 @@
                       <button onclick="event.stopPropagation(); openAddRoutingModal('${armName}', '${targetFullDate}')" class="bg-amber-400 hover:bg-amber-500 text-slate-900 w-4 h-4 rounded-full flex items-center justify-center text-[9px]"><i class="fa-solid fa-plus"></i></button>
                     </div>
                   </div>
-                  <div id="${detailsId}" class="${isPickupOnly ? '' : 'hidden'} border-t border-indigo-100 bg-white overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs min-w-[420px]">
-                      <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b">
-                        <tr>
-                          ${isPickupOnly ? '<th class="py-1.5 px-2">Status</th><th class="py-1.5 px-2 text-center">Foto</th>' : ''}
-                          <th class="py-1.5 px-2.5">Customer</th><th class="py-1.5 px-2">Daerah</th><th class="py-1.5 px-1 text-center">Dok</th>
-                          <th class="py-1.5 px-2 text-right">Cost</th><th class="py-1.5 px-2 text-right">Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>${customerRows}</tbody>
-                    </table>
-                  </div>
+                  <div id="${detailsId}" data-rendered="${renderedAttr}" class="${isPickupOnly ? '' : 'hidden'} border-t border-indigo-100 bg-white overflow-x-auto">${initialInnerHtml}</div>
                 </div>`;
             } else {
               armadaListHtml += `
@@ -1087,17 +1199,18 @@
 
     function updatePickupStatus(customer, tanggal, armada, newStatus) {
       const normTgl = normalizeDateString(tanggal);
+      const cleanCust = cleanString(customer);
       const key = getOverrideKey(normTgl, customer);
 
       if (!localOverrides[key]) localOverrides[key] = {};
       localOverrides[key].Status = newStatus;
       localStorage.setItem('logistics_local_overrides', JSON.stringify(localOverrides));
 
-      rawData.forEach(r => {
-        if (cleanString(r.Customer) === cleanString(customer) && r.Tanggal === normTgl) {
-          r.Status = newStatus;
+      for (let i = 0; i < rawData.length; i++) {
+        if (rawData[i].CleanCustomer === cleanCust && rawData[i].Tanggal === normTgl) {
+          rawData[i].Status = newStatus;
         }
-      });
+      }
       try { localStorage.setItem('cache_raw_jadwal_v2', JSON.stringify(rawData)); } catch (e) {}
       if (activeTab === 'pickup') renderPickupCalendar();
 
@@ -1154,15 +1267,21 @@
       const badgeCount = document.getElementById('outstandingBadgeCount');
       const selectedStatus = document.getElementById('statusFilterSelect').value;
 
-      let filtered = orderDetailsData.filter(item => {
+      const filtered = [];
+      for (let i = 0; i < orderDetailsData.length; i++) {
+        const item = orderDetailsData[i];
         const st = (item.Status || '').toLowerCase();
         const isBelum = st.includes('belum') || st.includes('pending');
         const isPartial = st.includes('partial');
         const isClosed = st.includes('closed') || st.includes('terkirim') || st.includes('done');
-        if (selectedStatus === 'BELUM_TERKIRIM') return isBelum;
-        if (selectedStatus === 'PARTIAL') return isPartial;
-        return (isBelum || isPartial || item.OutstandingQty > 0) && !isClosed;
-      });
+        if (selectedStatus === 'BELUM_TERKIRIM') {
+          if (isBelum) filtered.push(item);
+        } else if (selectedStatus === 'PARTIAL') {
+          if (isPartial) filtered.push(item);
+        } else {
+          if ((isBelum || isPartial || item.OutstandingQty > 0) && !isClosed) filtered.push(item);
+        }
+      }
 
       badgeCount.innerText = filtered.length;
       tbody.innerHTML = filtered.length === 0
@@ -1206,6 +1325,13 @@
       if (n >= 0 && n < datesList.length) { currentDateIndex = n; document.getElementById('dateSelect').value = n; renderDashboard(); }
     }
     function onDateSelectChange(val) { currentDateIndex = parseInt(val); renderDashboard(); }
+
+    // Debounce pada input pencarian agar mengetik cepat terasa sangat mulus tanpa jeda
+    function debouncedApplyFilters() {
+      clearTimeout(filterDebounceTimer);
+      filterDebounceTimer = setTimeout(() => renderDashboard(), 150);
+    }
+
     function applyFilters() { renderDashboard(); }
     function resetFilters() {
       document.getElementById('searchInput').value = ''; document.getElementById('armadaFilter').value = 'ALL';
@@ -1219,6 +1345,7 @@
       const dae = document.getElementById('daerahFilter').value;
       const sDate = document.getElementById('startDateInput').value;
       const eDate = document.getElementById('endDateInput').value;
+      const activeDateStr = datesList.length > 0 ? datesList[currentDateIndex] : '';
 
       return rawData.filter(item => {
         const sMatch = !search || item.Customer.toLowerCase().includes(search) || item.Daerah.toLowerCase().includes(search);
@@ -1227,7 +1354,7 @@
         let dateMatch = true;
         if (!search) {
           if (sDate || eDate) dateMatch = item.ISODate && (!sDate || item.ISODate >= sDate) && (!eDate || item.ISODate <= eDate);
-          else if (datesList.length > 0) dateMatch = item.Tanggal === datesList[currentDateIndex];
+          else if (activeDateStr) dateMatch = item.Tanggal === activeDateStr;
         }
         return sMatch && aMatch && dMatch && dateMatch;
       });
@@ -1236,17 +1363,31 @@
     function renderDashboard() {
       const data = getFilteredData();
       document.getElementById('currentDateDisplay').innerText = datesList[currentDateIndex] || 'N/A';
+
+      let totDok = 0, totBerat = 0, totCost = 0, totVal = 0;
+      const grouped = {};
+
+      for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        totDok += item.TotalDokumen;
+        totBerat += item.TotalBerat;
+        totCost += item.Cost;
+        totVal += item.Value;
+        if (!grouped[item.Armada]) grouped[item.Armada] = [];
+        grouped[item.Armada].push(item);
+      }
+
       document.getElementById('metricPengiriman').innerText = data.length;
-      document.getElementById('metricDokumen').innerText = data.reduce((s, i) => s + i.TotalDokumen, 0);
-      document.getElementById('metricBerat').innerText = `${data.reduce((s, i) => s + i.TotalBerat, 0).toLocaleString('id-ID')} gr`;
-      document.getElementById('metricCost').innerText = `Rp ${data.reduce((s, i) => s + i.Cost, 0).toLocaleString('id-ID')}`;
-      document.getElementById('metricValue').innerText = `Rp ${data.reduce((s, i) => s + i.Value, 0).toLocaleString('id-ID')}`;
+      document.getElementById('metricDokumen').innerText = totDok;
+      document.getElementById('metricBerat').innerText = `${totBerat.toLocaleString('id-ID')} gr`;
+      document.getElementById('metricCost').innerText = `Rp ${totCost.toLocaleString('id-ID')}`;
+      document.getElementById('metricValue').innerText = `Rp ${totVal.toLocaleString('id-ID')}`;
 
       const container = document.getElementById('armadaContainer');
-      if (data.length === 0) { container.innerHTML = `<div class="bg-white rounded-xl p-8 text-center text-slate-500 border">Tidak ada data pengiriman.</div>`; return; }
-
-      const grouped = {};
-      data.forEach(i => { if (!grouped[i.Armada]) grouped[i.Armada] = []; grouped[i.Armada].push(i); });
+      if (data.length === 0) {
+        container.innerHTML = `<div class="bg-white rounded-xl p-8 text-center text-slate-500 border">Tidak ada data pengiriman.</div>`;
+        return;
+      }
 
       container.innerHTML = Object.keys(grouped).map(arm => {
         const items = grouped[arm];
